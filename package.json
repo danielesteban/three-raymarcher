@@ -1,0 +1,31 @@
+{
+  "name": "three-raymarcher",
+  "author": "Daniel Esteban Nombela",
+  "version": "0.0.1",
+  "license": "MIT",
+  "module": "module.js",
+  "files": [
+    "module.js",
+    "LICENSE",
+    "package.json",
+    "README.md"
+  ],
+  "devDependencies": {
+    "npm-run-all": "^4.1.5",
+    "rollup": "^2.67.1",
+    "sirv-cli": "^2.0.2"
+  },
+  "peerDependencies": {
+    "three": "^0.137.5"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/danielesteban/three-raymarcher"
+  },
+  "scripts": {
+    "build": "rollup -c src/rollup.config.js",
+    "watch": "npm run build -- -w",
+    "serve": "sirv --dev --quiet .",
+    "start": "run-p watch serve"
+  }
+}

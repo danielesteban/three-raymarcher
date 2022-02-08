@@ -1,0 +1,101 @@
+<!doctype html>
+<html>
+  <head>
+    <title>three-raymarcher</title>
+    <meta charset="utf-8">
+    <style>
+      body { margin: 0; }
+      canvas { vertical-align: middle; }
+    </style>
+  </head>
+  <body>
+    <div id="renderer"></div>
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://cdn.jsdelivr.net/npm/three@0.137.5/build/three.module.js",
+          "three-orbit": "https://cdn.jsdelivr.net/npm/three@0.137.5/examples/jsm/controls/OrbitControls.js",
+          "three-stats": "https://cdn.jsdelivr.net/npm/three@0.137.5/examples/jsm/libs/stats.module.js",
+          "three-raymarcher": "./module.js"
+        }
+      }
+    </script>
+    <script type="module">
+      import {
+        Color,
+        Matrix4,
+        PerspectiveCamera,
+        PolarGridHelper,
+        Scene,
+        sRGBEncoding,
+        Vector3,
+        WebGLRenderer,
+      } from 'three';
+      import { OrbitControls } from 'three-orbit';
+      import Stats from 'three-stats';
+      import Raymarcher from 'three-raymarcher';
+
+      const stats = new Stats();
+      document.body.appendChild(stats.dom);
+      const renderer = new WebGLRenderer();
+      renderer.encoding = sRGBEncoding;
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      const camera = new PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.01, 1000);
+      const controls = new OrbitControls(camera, renderer.domElement);
+      document.getElementById('renderer').appendChild(renderer.domElement);
+      window.addEventListener('resize', () => {
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+      }, false);
+
+      const scene = new Scene();
+      scene.background = new Color(0x112233);
+      const grid = new PolarGridHelper(32, 16, 16, 64);
+      grid.material.transparent = true;
+      grid.material.opacity = 0.1;
+      scene.add(grid);
+
+      camera.position.set(8, 12, 14);
+      controls.target.set(0, 6, 0);
+      controls.enableDamping = true;
+
+      const raymarcher = new Raymarcher({
+        entities: [...Array(32)].map(() => ({
+          color: new Color(Math.random() * 0xFFFFFF),
+          position: (new Vector3(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5))
+            .normalize()
+            .multiplyScalar(5 - Math.random() * 2)
+            .add(controls.target),
+          scale: new Vector3(1, 1, 1),
+          shape: Math.random() > 0.8 ? Raymarcher.shapes.box : Raymarcher.shapes.sphere,
+        })),
+        resolution: 0.5,
+      });
+      scene.add(raymarcher);
+
+      const up = new Vector3(0, 1, 0);
+      const matrix = new Matrix4();
+      const transform = new Matrix4();
+      const initial = raymarcher.userData.entities.map(({ position }) => position.clone());
+      renderer.setAnimationLoop((time) => {
+        time /= 1000;
+
+        transform.makeRotationAxis(up, time * 0.5).multiply(
+          matrix.makeTranslation(0, Math.sin(time) * 0.5, 0)
+        );
+        raymarcher.userData.entities.forEach((entity, i) => {
+          entity.position
+            .copy(initial[i])
+            .multiplyScalar(1.1 + Math.sin(time + i * 0.5) * 0.1)
+            .applyMatrix4(transform);
+          entity.scale.setScalar(1 + Math.abs(Math.sin(time * 0.5 + i * 2)) * 2);
+        });
+
+        controls.update();
+        stats.update();
+        renderer.render(scene, camera);
+      });
+    </script>
+  </body>
+</html>
