@@ -2,9 +2,9 @@ import path from 'path';
 
 export default {
   external: ['three'],
-  input: path.join(__dirname, 'raymarcher.js'),
+  input: path.join(__dirname, 'src', 'raymarcher.js'),
   output: {
-    file: path.resolve(__dirname, '..', 'module.js'),
+    file: path.join(__dirname, 'module.js'),
     format: 'esm',
   },
   plugins: [

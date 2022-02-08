@@ -5,8 +5,8 @@
   "license": "MIT",
   "module": "module.js",
   "files": [
-    "module.js",
     "LICENSE",
+    "module.js",
     "package.json",
     "README.md"
   ],
@@ -23,7 +23,7 @@
     "url": "https://github.com/danielesteban/three-raymarcher"
   },
   "scripts": {
-    "build": "rollup -c src/rollup.config.js",
+    "build": "rollup -c rollup.config.js",
     "watch": "npm run build -- -w",
     "serve": "sirv --dev --quiet .",
     "start": "run-p watch serve"
