@@ -1,6 +1,3 @@
-precision highp int;
-precision highp float;
-
 out vec3 ray;
 in vec3 position;
 uniform vec2 aspect;

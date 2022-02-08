@@ -1,4 +1,3 @@
-precision highp int;
 precision highp float;
 
 struct Entity {
@@ -79,16 +78,15 @@ float getDirectLight(const in vec3 position, const in vec3 normal) {
 }
 
 vec4 LinearTosRGB(const in vec4 value) {
-	return vec4(mix(pow(value.rgb, vec3(0.41666)) * 1.055 - vec3(0.055), value.rgb * 12.92, vec3(lessThanEqual(value.rgb, vec3(0.0031308)))), value.a);
+  return vec4(mix(pow(value.rgb, vec3(0.41666)) * 1.055 - vec3(0.055), value.rgb * 12.92, vec3(lessThanEqual(value.rgb, vec3(0.0031308)))), value.a);
 }
 
 void main() {
   float distance;
-  int iterations;
   vec3 position = cameraPosition;
   SDF step = SDF(vec3(0.0), MAX_DISTANCE);
   for (
-    iterations = 0;
+    int iterations = 0;
     step.distance > MIN_DISTANCE && distance < MAX_DISTANCE && iterations < MAX_ITERATIONS;
     iterations++
   ) {

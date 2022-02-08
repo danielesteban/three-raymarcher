@@ -1,4 +1,3 @@
-precision highp int;
 precision highp float;
 
 out vec4 fragColor;

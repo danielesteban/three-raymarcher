@@ -1,6 +1,3 @@
-precision highp int;
-precision highp float;
-
 out vec2 fragUV;
 in vec3 position;
 
