@@ -15,10 +15,10 @@ struct SDF {
 out vec4 fragColor;
 in vec3 ray;
 uniform vec3 camera;
-uniform vec3 cameraForward;
+uniform vec3 cameraDirection;
 uniform vec3 cameraPosition;
-uniform vec3 lightDirection;
 uniform Entity entities[MAX_ENTITIES];
+uniform vec3 lightDirection;
 
 float sdBox(const in vec3 p, const in vec3 r) {
   vec3 q = abs(p)-r;
@@ -97,9 +97,8 @@ void main() {
   if (step.distance > MIN_DISTANCE) {
     discard;
   }
-  position -= ray * MIN_DISTANCE;
   float light = getDirectLight(position, getNormal(position));
   fragColor = clamp(LinearTosRGB(vec4(step.color * light, 1.0)), 0.0, 1.0);
-  float depth = camera.y + camera.z / (-distance * dot(cameraForward, ray));
+  float depth = camera.y + camera.z / (-distance * dot(cameraDirection, ray));
   gl_FragDepth = (gl_DepthRange.diff * depth + gl_DepthRange.near + gl_DepthRange.far) / 2.0;
 }

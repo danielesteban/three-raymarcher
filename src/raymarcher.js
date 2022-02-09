@@ -21,14 +21,12 @@ class Raymarcher extends Mesh {
     lightDirection = new Vector3(-1.0, -1.0, -1.0),
     resolution = 1,
   }) {
-    const geometry = new PlaneGeometry(2, 2, 1, 1);
-    geometry.deleteAttribute('normal');
-    geometry.deleteAttribute('uv');
-    const target = new WebGLRenderTarget(
-      1, 1, { depthTexture: new DepthTexture() }
-    );
+    const plane = new PlaneGeometry(2, 2, 1, 1);
+    plane.deleteAttribute('normal');
+    plane.deleteAttribute('uv');
+    const target = new WebGLRenderTarget(1, 1, { depthTexture: new DepthTexture() });
     super(
-      geometry,
+      plane,
       new RawShaderMaterial({
         depthFunc: LessDepth,
         glslVersion: GLSL3,
@@ -40,72 +38,75 @@ class Raymarcher extends Mesh {
         },
       })
     );
-    const material = new RawShaderMaterial({
-      glslVersion: GLSL3,
-      vertexShader: raymarcherVertex,
-      fragmentShader: raymarcherFragment,
-      defines: {
-        MIN_DISTANCE: '0.01',
-        MAX_DISTANCE: '1000.0',
-        MAX_ENTITIES: `${entities.length}`,
-        MAX_ITERATIONS: '256',
-      },
-      uniforms: {
-        aspect: { value: new Vector2() },
-        camera: { value: new Vector3() },
-        cameraForward: { value: new Vector3() },
-        lightDirection: { value: lightDirection },
-        entities: {
-          value: entities,
-          properties: {
-            color: {},
-            position: {},
-            scale: {},
-            shape: {},
-          },
-        },
-      },
-    });
     this.userData = {
       entities,
-      material,
-      mesh: new Mesh(geometry, material),
+      lightDirection,
+      raymarcher: new Mesh(
+        plane,
+        new RawShaderMaterial({
+          glslVersion: GLSL3,
+          vertexShader: raymarcherVertex,
+          fragmentShader: raymarcherFragment,
+          defines: {
+            MIN_DISTANCE: '0.01',
+            MAX_DISTANCE: '1000.0',
+            MAX_ENTITIES: `${entities.length}`,
+            MAX_ITERATIONS: '256',
+          },
+          uniforms: {
+            aspect: { value: new Vector2() },
+            camera: { value: new Vector3() },
+            cameraDirection: { value: new Vector3() },
+            entities: {
+              value: entities,
+              properties: {
+                color: {},
+                position: {},
+                scale: {},
+                shape: {},
+              },
+            },
+            lightDirection: { value: lightDirection },
+          },
+        })
+      ),
       resolution,
       size: new Vector2(),
       target,
     };
-    this.matrixAutoUpdate = this.userData.mesh.matrixAutoUpdate = false;
-    this.frustumCulled = this.userData.mesh.frustumCulled = false;
+    this.matrixAutoUpdate = this.userData.raymarcher.matrixAutoUpdate = false;
+    this.frustumCulled = this.userData.raymarcher.frustumCulled = false;
   }
 
   dispose() {
     const { material, geometry, userData } = this;
     material.dispose();
     geometry.dispose();
-    userData.material.dispose();
+    userData.raymarcher.material.dispose();
     userData.target.dispose();
     userData.target.depthTexture.dispose();
     userData.target.texture.dispose();
   }
 
   onBeforeRender(renderer, s, camera) {
-    const { userData: { entities, material: { defines, uniforms }, mesh, resolution, size, target } } = this;
+    const { userData: { entities, resolution, raymarcher, size, target } } = this;
+    const { material: { defines, uniforms } } = raymarcher;
     defines.MAX_ENTITIES = `${entities.length}`;
     renderer.getDrawingBufferSize(size).multiplyScalar(resolution);
-    if (size.x !== target.width || size.y !== target.height) {
-      const { near: zNear, far: zFar, fov } = camera;
+    if (target.width !== size.x || target.height !== size.y) {
       target.setSize(size.x, size.y);
       uniforms.aspect.value.set(
         size.y / size.x,
         size.x / size.y
       );
+      const { near, far, fov } = camera;
       uniforms.camera.value.set(
         1.0 / Math.tan(ThreeMath.degToRad(fov) / 2.0),
-        (zFar + zNear) / (zFar - zNear),
-        (2 * zFar * zNear) / (zFar - zNear)
+        (far + near) / (far - near),
+        (2 * far * near) / (far - near)
       );
     }
-    camera.getWorldDirection(uniforms.cameraForward.value);
+    camera.getWorldDirection(uniforms.cameraDirection.value);
     const currentRenderTarget = renderer.getRenderTarget();
     const currentXrEnabled = renderer.xr.enabled;
     const currentShadowAutoUpdate = renderer.shadowMap.autoUpdate;
@@ -114,7 +115,7 @@ class Raymarcher extends Mesh {
     renderer.setRenderTarget(target);
     renderer.state.buffers.depth.setMask(true);
     if (!renderer.autoClear) renderer.clear();
-    renderer.render(mesh, camera);
+    renderer.render(raymarcher, camera);
     renderer.xr.enabled = currentXrEnabled;
     renderer.shadowMap.autoUpdate = currentShadowAutoUpdate;
     renderer.setRenderTarget(currentRenderTarget);
