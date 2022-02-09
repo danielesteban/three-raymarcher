@@ -4,7 +4,8 @@
 
 ### Examples
 
- * [glitch.com/~three-raymarcher](https://glitch.com/edit/#!/three-raymarcher)
+ * Animation: [glitch.com/~three-raymarcher](https://glitch.com/edit/#!/three-raymarcher)
+ * Picking: [glitch.com/~three-raymarcher-picking](https://glitch.com/edit/#!/three-raymarcher-picking)
 
 ### Installation
 
@@ -69,5 +70,5 @@ cd three-raymarcher
 npm install
 # start the environment:
 npm start
-# open http://localhost:8080/example in your browser
+# open http://localhost:8080/examples/animation in your browser
 ```

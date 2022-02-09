@@ -1,5 +1,8 @@
 import {
+  BoxGeometry,
+  CylinderGeometry,
   DepthTexture,
+  IcosahedronGeometry,
   LessDepth,
   GLSL3,
   Math as ThreeMath,
@@ -15,6 +18,13 @@ import raymarcherFragment from './shaders/raymarcher.frag';
 import raymarcherVertex from './shaders/raymarcher.vert';
 import screenFragment from './shaders/screen.frag';
 import screenVertex from './shaders/screen.vert';
+
+const _colliders = [
+  new Mesh(new BoxGeometry(1, 1, 1)),
+  new Mesh(new CylinderGeometry(0.5, 0.5, 1)),
+  new Mesh(new IcosahedronGeometry(0.5, 2)),
+];
+const _size = new Vector2();
 
 class Raymarcher extends Mesh {
   constructor({
@@ -73,7 +83,6 @@ class Raymarcher extends Mesh {
         })
       ),
       resolution,
-      size: new Vector2(),
       target,
     };
     this.matrixAutoUpdate = this.userData.raymarcher.matrixAutoUpdate = false;
@@ -109,15 +118,15 @@ class Raymarcher extends Mesh {
   }
 
   onBeforeRender(renderer, s, camera) {
-    const { userData: { entities, resolution, raymarcher, size, target } } = this;
+    const { userData: { entities, resolution, raymarcher, target } } = this;
     const { material: { defines, uniforms } } = raymarcher;
     defines.MAX_ENTITIES = `${entities.length}`;
-    renderer.getDrawingBufferSize(size).multiplyScalar(resolution);
-    if (target.width !== size.x || target.height !== size.y) {
-      target.setSize(size.x, size.y);
+    renderer.getDrawingBufferSize(_size).multiplyScalar(resolution);
+    if (target.width !== _size.x || target.height !== _size.y) {
+      target.setSize(_size.x, _size.y);
       uniforms.aspect.value.set(
-        size.y / size.x,
-        size.x / size.y
+        _size.y / _size.x,
+        _size.x / _size.y
       );
       const { near, far, fov } = camera;
       uniforms.camera.value.set(
@@ -140,6 +149,26 @@ class Raymarcher extends Mesh {
     renderer.shadowMap.autoUpdate = currentShadowAutoUpdate;
     renderer.setRenderTarget(currentRenderTarget);
     if (camera.viewport) renderer.state.viewport(camera.viewport);
+  }
+
+  raycast(raycaster, intersects) {
+    const { userData: { entities } } = this;
+    entities.forEach((entity, entityId) => {
+      const { position, rotation, scale, shape } = entity;
+      const collider = _colliders[shape];
+      collider.position.copy(position);
+      collider.quaternion.copy(rotation);
+      collider.scale.copy(scale);
+      collider.updateMatrixWorld();
+      const entityIntersects = [];
+      collider.raycast(raycaster, entityIntersects);
+      entityIntersects.forEach((intersect) => {
+        intersect.entityId = entityId;
+        intersect.entity = entity;
+        intersect.object = this;
+        intersects.push(intersect);
+      });
+    });
   }
 }
 
