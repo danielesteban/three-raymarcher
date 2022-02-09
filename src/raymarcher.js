@@ -8,6 +8,7 @@ import {
   RawShaderMaterial,
   Vector2,
   Vector3,
+  Vector4,
   WebGLRenderTarget,
 } from 'three';
 import raymarcherFragment from './shaders/raymarcher.frag';
@@ -17,7 +18,7 @@ import screenVertex from './shaders/screen.vert';
 
 class Raymarcher extends Mesh {
   constructor({
-    entities = [{ color: new Vector3(), position: new Vector3(), scale: new Vector3() }],
+    entities = [{ color: new Vector3(), position: new Vector3(), rotation: new Vector4(), scale: new Vector3() }],
     lightDirection = new Vector3(-1.0, -1.0, -1.0),
     resolution = 1,
   } = {}) {
@@ -62,6 +63,7 @@ class Raymarcher extends Mesh {
               properties: {
                 color: {},
                 position: {},
+                rotation: {},
                 scale: {},
                 shape: {},
               },
@@ -83,9 +85,10 @@ class Raymarcher extends Mesh {
     const { userData: { entities, lightDirection, resolution } } = source;
     this.userData = {
       ...this.userData,
-      entities: uniforms.entities.value = entities.map(({ color, position, scale, shape }) => ({
+      entities: uniforms.entities.value = entities.map(({ color, position, rotation, scale, shape }) => ({
         color: color.clone(),
         position: position.clone(),
+        rotation: rotation.clone(),
         scale: scale.clone(),
         shape: shape,
       })),
@@ -142,7 +145,8 @@ class Raymarcher extends Mesh {
 
 Raymarcher.shapes = {
   box: 0,
-  sphere: 1, 
+  capsule: 1,
+  sphere: 2,
 };
 
 export default Raymarcher;

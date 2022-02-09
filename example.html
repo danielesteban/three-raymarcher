@@ -5,7 +5,6 @@
     <meta charset="utf-8">
     <style>
       body { margin: 0; }
-      canvas { vertical-align: middle; }
     </style>
   </head>
   <body>
@@ -27,6 +26,7 @@
         Matrix4,
         PerspectiveCamera,
         PolarGridHelper,
+        Quaternion,
         Scene,
         sRGBEncoding,
         Vector3,
@@ -57,40 +57,60 @@
       grid.material.opacity = 0.1;
       scene.add(grid);
 
-      camera.position.set(8, 12, 14);
-      controls.target.set(0, 6, 0);
+      camera.position.set(8, 12, 12);
+      controls.target.set(0, 5, 0);
       controls.enableDamping = true;
 
+      const { shapes } = Raymarcher;
       const raymarcher = new Raymarcher({
-        entities: [...Array(32)].map(() => ({
-          color: new Color(Math.random() * 0xFFFFFF),
-          position: (new Vector3(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5))
-            .normalize()
-            .multiplyScalar(5 - Math.random() * 2)
-            .add(controls.target),
-          scale: new Vector3(1, 1, 1),
-          shape: Math.random() > 0.8 ? Raymarcher.shapes.box : Raymarcher.shapes.sphere,
-        })),
+        entities: [...Array(24)].map(() => {
+          const shape = [shapes.box, shapes.capsule, shapes.sphere][Math.floor(Math.random() * 3)];
+          return {
+            color: new Color(Math.random() * 0xFFFFFF),
+            position: (new Vector3(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5))
+              .normalize()
+              .multiplyScalar(5 - Math.random() * 2)
+              .add(controls.target),
+            rotation: new Quaternion(0, 0, 0, 1),
+            scale: new Vector3(
+              (shape === shapes.capsule ? 0.25 : 1) + Math.random() * 0.25,
+              (shape === shapes.capsule ? 1.25 : 1) + Math.random() * 0.25,
+              1 - Math.random() * 0.25
+            ),
+            shape,
+          };
+        }),
         resolution: 0.5,
       });
       scene.add(raymarcher);
 
+      const animations = raymarcher.userData.entities.map(({ position, scale }) => ({
+        axis: (new Vector3(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5)).normalize(),
+        position: position.clone(),
+        scale: scale.clone(),
+        speed: 0.5 + Math.random() * 2,
+      }));
       const up = new Vector3(0, 1, 0);
       const matrix = new Matrix4();
       const transform = new Matrix4();
-      const initial = raymarcher.userData.entities.map(({ position }) => position.clone());
       renderer.setAnimationLoop((time) => {
         time /= 1000;
 
-        transform.makeRotationAxis(up, time * 0.5).multiply(
-          matrix.makeTranslation(0, Math.sin(time) * 0.5, 0)
+        transform.makeRotationAxis(up, time * 0.25).multiply(
+          matrix.makeTranslation(0, Math.sin(time) * 0.25, 0)
         );
         raymarcher.userData.entities.forEach((entity, i) => {
+          const animation = animations[i];
+          const t = i * 16 + time * animation.speed;
           entity.position
-            .copy(initial[i])
-            .multiplyScalar(1.1 + Math.sin(time + i * 0.5) * 0.1)
+            .copy(animation.position)
+            .multiplyScalar(1.1 + Math.sin(t * 0.75) * 0.1)
             .applyMatrix4(transform);
-          entity.scale.setScalar(1 + Math.abs(Math.sin(time * 0.5 + i * 2)) * 2);
+          entity.rotation
+            .setFromAxisAngle(animation.axis, t * 0.25);
+          entity.scale
+            .copy(animation.scale)
+            .multiplyScalar(1 + Math.abs(Math.sin(t * 0.125)) * 2);
         });
 
         controls.update();

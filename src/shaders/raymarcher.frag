@@ -3,6 +3,7 @@ precision highp float;
 struct Entity {
   vec3 color;
   vec3 position;
+  vec4 rotation;
   vec3 scale;
   int shape;
 };
@@ -20,9 +21,22 @@ uniform vec3 cameraPosition;
 uniform Entity entities[MAX_ENTITIES];
 uniform vec3 lightDirection;
 
+vec3 applyQuaternion(const in vec3 p, const in vec4 q) {
+  return p + 2.0 * cross(q.xyz, cross(q.xyz, p) + q.w * p);
+}
+
+vec4 linearTosRGB(const in vec4 value) {
+  return vec4(mix(pow(value.rgb, vec3(0.41666)) * 1.055 - vec3(0.055), value.rgb * 12.92, vec3(lessThanEqual(value.rgb, vec3(0.0031308)))), value.a);
+}
+
 float sdBox(const in vec3 p, const in vec3 r) {
   vec3 q = abs(p)-r;
   return length(max(q,0.0))+min(max(q.x,max(q.y,q.z)),0.0);
+}
+
+float sdCapsule(in vec3 p, const in vec3 r) {
+  p.y -= clamp(p.y,-r.y+r.x,r.y-r.x);
+  return length(p)-r.x;
 }
 
 float sdEllipsoid(const in vec3 p, const in vec3 r) {
@@ -31,13 +45,16 @@ float sdEllipsoid(const in vec3 p, const in vec3 r) {
   return k0*(k0-1.0)/k1;
 }
 
-SDF sdEntity(const in vec3 p, const in Entity e) {
+SDF sdEntity(in vec3 p, const in Entity e) {
+  p = applyQuaternion(p - e.position, normalize(e.rotation));
   switch (e.shape) {
     default:
     case 0:
-      return SDF(e.color, sdBox(p - e.position, e.scale * 0.5 - vec3(0.1)) - 0.1);
+      return SDF(e.color, sdBox(p, e.scale * 0.5 - vec3(0.1)) - 0.1);
     case 1:
-      return SDF(e.color, sdEllipsoid(p - e.position, e.scale * 0.5));
+      return SDF(e.color, sdCapsule(p, e.scale * 0.5));
+    case 2:
+      return SDF(e.color, sdEllipsoid(p, e.scale * 0.5));
   }
 }
 
@@ -77,10 +94,6 @@ float getDirectLight(const in vec3 position, const in vec3 normal) {
   return ambient + diffuse + specular;
 }
 
-vec4 LinearTosRGB(const in vec4 value) {
-  return vec4(mix(pow(value.rgb, vec3(0.41666)) * 1.055 - vec3(0.055), value.rgb * 12.92, vec3(lessThanEqual(value.rgb, vec3(0.0031308)))), value.a);
-}
-
 void main() {
   float distance;
   vec3 position = cameraPosition;
@@ -98,7 +111,7 @@ void main() {
     discard;
   }
   float light = getDirectLight(position, getNormal(position));
-  fragColor = clamp(LinearTosRGB(vec4(step.color * light, 1.0)), 0.0, 1.0);
+  fragColor = clamp(linearTosRGB(vec4(step.color * light, 1.0)), 0.0, 1.0);
   float depth = camera.y + camera.z / (-distance * dot(cameraDirection, ray));
   gl_FragDepth = (gl_DepthRange.diff * depth + gl_DepthRange.near + gl_DepthRange.far) / 2.0;
 }
