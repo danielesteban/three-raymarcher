@@ -17,10 +17,10 @@ import screenVertex from './shaders/screen.vert';
 
 class Raymarcher extends Mesh {
   constructor({
-    entities,
+    entities = [],
     lightDirection = new Vector3(-1.0, -1.0, -1.0),
     resolution = 1,
-  }) {
+  } = {}) {
     const plane = new PlaneGeometry(2, 2, 1, 1);
     plane.deleteAttribute('normal');
     plane.deleteAttribute('uv');
@@ -78,14 +78,31 @@ class Raymarcher extends Mesh {
     this.frustumCulled = this.userData.raymarcher.frustumCulled = false;
   }
 
+  copy(source) {
+    const { userData: { raymarcher: { material: { uniforms } } } } = this;
+    const { userData: { entities, lightDirection, resolution } } = source;
+    this.userData = {
+      ...this.userData,
+      entities: uniforms.entities.value = entities.map(({ color, position, scale, shape }) => ({
+        color: color.clone(),
+        position: position.clone(),
+        scale: scale.clone(),
+        shape: shape,
+      })),
+      lightDirection: uniforms.lightDirection.value = lightDirection.clone(),
+      resolution,
+    };
+    return this;
+  }
+
   dispose() {
-    const { material, geometry, userData } = this;
+    const { material, geometry, userData: { raymarcher, target } } = this;
     material.dispose();
     geometry.dispose();
-    userData.raymarcher.material.dispose();
-    userData.target.dispose();
-    userData.target.depthTexture.dispose();
-    userData.target.texture.dispose();
+    raymarcher.material.dispose();
+    target.dispose();
+    target.depthTexture.dispose();
+    target.texture.dispose();
   }
 
   onBeforeRender(renderer, s, camera) {
