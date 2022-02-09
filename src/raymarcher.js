@@ -17,7 +17,7 @@ import screenVertex from './shaders/screen.vert';
 
 class Raymarcher extends Mesh {
   constructor({
-    entities = [],
+    entities = [{ color: new Vector3(), position: new Vector3(), scale: new Vector3() }],
     lightDirection = new Vector3(-1.0, -1.0, -1.0),
     resolution = 1,
   } = {}) {
