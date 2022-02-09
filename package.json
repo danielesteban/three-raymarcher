@@ -1,7 +1,7 @@
 {
   "name": "three-raymarcher",
   "author": "Daniel Esteban Nombela",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "license": "MIT",
   "module": "module.js",
   "files": [

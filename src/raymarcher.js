@@ -159,6 +159,9 @@ class Raymarcher extends Mesh {
       collider.position.copy(position);
       collider.quaternion.copy(rotation);
       collider.scale.copy(scale);
+      if (shape === Raymarcher.shapes.capsule) {
+        collider.scale.z = collider.scale.x;
+      }
       collider.updateMatrixWorld();
       const entityIntersects = [];
       collider.raycast(raycaster, entityIntersects);

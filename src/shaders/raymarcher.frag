@@ -22,7 +22,7 @@ uniform Entity entities[MAX_ENTITIES];
 uniform vec3 lightDirection;
 
 vec3 applyQuaternion(const in vec3 p, const in vec4 q) {
-  return p + 2.0 * cross(q.xyz, cross(q.xyz, p) + q.w * p);
+  return p + 2.0 * cross(-q.xyz, cross(-q.xyz, p) + q.w * p);
 }
 
 vec4 linearTosRGB(const in vec4 value) {
