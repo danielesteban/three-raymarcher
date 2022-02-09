@@ -22,6 +22,7 @@ const aspect = window.innerWidth / window.innerHeight;
 const camera = new PerspectiveCamera(70, aspect, 0.01, 1000);
 const renderer = new WebGLRenderer();
 renderer.setSize(window.innerWidth, window.innerHeight);
+document.body.appendChild(renderer.domElement);
 
 const scene = new Scene();
 const raymarcher = new Raymarcher({
@@ -42,9 +43,9 @@ const raymarcher = new Raymarcher({
 });
 scene.add(raymarcher);
 
-renderer.setAnimationLoop(() => {
-  renderer.render(scene, camera);
-});
+renderer.setAnimationLoop(() => (
+  renderer.render(scene, camera)
+));
 ```
 
 ### Module dev environment
