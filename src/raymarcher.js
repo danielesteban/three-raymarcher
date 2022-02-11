@@ -33,7 +33,7 @@ class Raymarcher extends Mesh {
     blending = 0.5,
     entities = [{ color: new Color(), position: new Vector3(), rotation: new Quaternion(), scale: new Vector3() }],
     envMap = null,
-    envMapIntensity = 0.3,
+    envMapIntensity = 1,
     resolution = 1,
   } = {}) {
     const plane = new PlaneGeometry(2, 2, 1, 1);
