@@ -25,6 +25,7 @@
     <script type="module">
       import {
         Color,
+        DirectionalLight,
         Matrix4,
         PerspectiveCamera,
         PMREMGenerator,
@@ -71,6 +72,10 @@
         Disabled: null,
       };
 
+      const light = new DirectionalLight(0xFFFFFF, 0.7);
+      light.position.set(1, 1, 1);
+      scene.add(light);
+
       const { shapes } = Raymarcher;
       const raymarcher = new Raymarcher({
         entities: [...Array(24)].map(() => {
@@ -95,12 +100,19 @@
       });
       scene.add(raymarcher);
       
-      const gui = new GUI();
+      const gui = new GUI({ title: 'three-raymarcher' });
       gui.add(raymarcher.userData, 'blending', 0, 2, 0.01);
-      gui.add(raymarcher.userData, 'envMap', environments);
-      gui.add(raymarcher.userData, 'envMapIntensity', 0, 1, 0.01);
-      gui.add(raymarcher.userData, 'lightIntensity', 0, 1, 0.01);
       gui.add(raymarcher.userData, 'resolution', 0.01, 1, 0.01);
+      {
+        const folder = gui.addFolder('Direct Light');
+        folder.addColor(light, 'color');
+        folder.add(light, 'intensity', 0, 1, 0.01);
+      }
+      {
+        const folder = gui.addFolder('Indirect Light');
+        folder.add(raymarcher.userData, 'envMap', environments);
+        folder.add(raymarcher.userData, 'envMapIntensity', 0, 1, 0.01);
+      }
 
       const animations = raymarcher.userData.entities.map(({ position, scale }) => ({
         axis: (new Vector3(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5)).normalize(),

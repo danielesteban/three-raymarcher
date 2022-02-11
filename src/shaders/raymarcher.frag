@@ -9,6 +9,11 @@ struct Entity {
   int shape;
 };
 
+struct Light {
+  vec3 color;
+  vec3 direction;
+};
+
 struct SDF {
   vec3 color;
   float distance;
@@ -20,11 +25,12 @@ uniform float blending;
 uniform vec3 camera;
 uniform vec3 cameraDirection;
 uniform vec3 cameraPosition;
-uniform Entity entities[MAX_ENTITIES];
+uniform Entity entities[NUM_ENTITIES];
 uniform sampler2D envMap;
 uniform float envMapIntensity;
-uniform vec3 lightDirection;
-uniform float lightIntensity;
+#if NUM_LIGHTS > 0
+uniform Light lights[NUM_LIGHTS];
+#endif
 
 #define texture2D texture
 #include <cube_uv_reflection_fragment>
@@ -73,7 +79,7 @@ SDF opSmoothUnion(const in SDF a, const in SDF b, const in float k) {
 
 SDF map(const in vec3 p) {
   SDF scene = sdEntity(p, entities[0]);
-  for (int i = 1; i < MAX_ENTITIES; i++) {
+  for (int i = 1; i < NUM_ENTITIES; i++) {
     scene = opSmoothUnion(scene, sdEntity(p, entities[i]), blending);
   }
   return scene;
@@ -92,15 +98,22 @@ vec3 getNormal(const in vec3 p) {
 
 vec3 getLight(const in vec3 position, const in vec3 normal) {
   #ifdef ENVMAP_TYPE_CUBE_UV
-    vec3 ambient = textureCubeUV(envMap, normal, 1.0).rgb;
+    vec3 light = textureCubeUV(envMap, normal, 1.0).rgb * envMapIntensity;
   #else
-    vec3 ambient = vec3(1.0);
+    vec3 light = vec3(envMapIntensity);
   #endif
-  vec3 direction = normalize(-lightDirection);
-  vec3 halfway = normalize(direction + normalize(cameraPosition - position));
-  float diffuse = max(dot(direction, normal), 0.0);
-  float specular = pow(max(dot(normal, halfway), 0.0), 32.0) * 0.5;
-  return ambient * envMapIntensity + vec3(diffuse + specular) * lightIntensity;
+  #if NUM_LIGHTS > 0
+    vec3 viewDirection = normalize(cameraPosition - position);
+    for (int i = 0; i < NUM_LIGHTS; i++) {
+      vec3 direction = normalize(-lights[i].direction);
+      vec3 halfway = normalize(direction + viewDirection);
+      light += lights[i].color * (
+        max(dot(direction, normal), 0.0)
+        + pow(max(dot(normal, halfway), 0.0), 32.0)
+      );
+    }
+  #endif
+  return light;
 }
 
 void main() {

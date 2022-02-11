@@ -9,6 +9,7 @@ import {
   Math as ThreeMath,
   Mesh,
   PlaneGeometry,
+  Quaternion,
   RawShaderMaterial,
   Vector2,
   Vector3,
@@ -25,16 +26,15 @@ const _colliders = [
   new Mesh(new CylinderGeometry(0.5, 0.5, 1)),
   new Mesh(new IcosahedronGeometry(0.5, 2)),
 ];
+const _position = new Vector3();
 const _size = new Vector2();
 
 class Raymarcher extends Mesh {
   constructor({
     blending = 0.5,
-    entities = [{ color: new Color(), position: new Vector3(), rotation: new Vector4(), scale: new Vector3() }],
+    entities = [{ color: new Color(), position: new Vector3(), rotation: new Quaternion(), scale: new Vector3() }],
     envMap = null,
     envMapIntensity = 0.3,
-    lightDirection = new Vector3(-1, -1, -1),
-    lightIntensity = 0.7,
     resolution = 1,
   } = {}) {
     const plane = new PlaneGeometry(2, 2, 1, 1);
@@ -61,8 +61,9 @@ class Raymarcher extends Mesh {
       defines: {
         MIN_DISTANCE: '0.01',
         MAX_DISTANCE: '1000.0',
-        MAX_ENTITIES: `${entities.length}`,
         MAX_ITERATIONS: '256',
+        NUM_ENTITIES: `${entities.length}`,
+        NUM_LIGHTS: 0,
         ENVMAP_TYPE_CUBE_UV: !!envMap,
       },
       uniforms: {
@@ -82,8 +83,13 @@ class Raymarcher extends Mesh {
         },
         envMap: { value: envMap },
         envMapIntensity: { value: envMapIntensity },
-        lightDirection: { value: lightDirection },
-        lightIntensity: { value: lightIntensity },
+        lights: {
+          value: [],
+          properties: {
+            color: {},
+            direction: {},
+          },
+        },
       },
     });
     const { defines, uniforms } = material;
@@ -116,18 +122,6 @@ class Raymarcher extends Mesh {
       set envMapIntensity(value) {
         uniforms.envMapIntensity.value = value;
       },
-      get lightDirection() {
-        return uniforms.lightDirection.value;
-      },
-      set lightDirection(value) {
-        uniforms.lightDirection.value = value;
-      },
-      get lightIntensity() {
-        return uniforms.lightIntensity.value;
-      },
-      set lightIntensity(value) {
-        uniforms.lightIntensity.value = value;
-      },
       raymarcher: new Mesh(plane, material),
       resolution,
       target,
@@ -138,7 +132,7 @@ class Raymarcher extends Mesh {
 
   copy(source) {
     const { userData } = this;
-    const { userData: { blending, entities, envMap, envMapIntensity, lightDirection, lightIntensity, resolution } } = source;
+    const { userData: { blending, entities, envMap, envMapIntensity, resolution } } = source;
     userData.blending = blending;
     userData.entities = entities.map(({ color, position, rotation, scale, shape }) => ({
       color: color.clone(),
@@ -149,8 +143,6 @@ class Raymarcher extends Mesh {
     }));
     userData.envMap = envMap;
     userData.envMapIntensity = envMapIntensity;
-    userData.lightDirection = lightDirection.clone();
-    userData.lightIntensity = lightIntensity;
     userData.resolution = resolution;
     return this;
   }
@@ -165,11 +157,28 @@ class Raymarcher extends Mesh {
     target.texture.dispose();
   }
 
-  onBeforeRender(renderer, s, camera) {
+  onBeforeRender(renderer, scene, camera) {
     const { userData: { entities, resolution, raymarcher, target } } = this;
     const { material: { defines, uniforms } } = raymarcher;
-    if (defines.MAX_ENTITIES !== `${entities.length}`) {
-      defines.MAX_ENTITIES = `${entities.length}`;
+    const lights = [];
+    scene.traverseVisible((light) => {
+      if (light.isDirectionalLight && light.layers.test(camera.layers)) {
+        lights.push(light);
+      }
+    });
+    if (defines.NUM_LIGHTS !== `${lights.length}`) {
+      defines.NUM_LIGHTS = `${lights.length}`;
+      uniforms.lights.value = lights.map(() => ({ color: new Color(), direction: new Vector3() }));
+      raymarcher.material.needsUpdate = true;
+    }
+    lights.forEach((light, i) => {
+      const uniform = uniforms.lights.value[i];
+      uniform.color.copy(light.color).multiplyScalar(light.intensity);
+      light.target.getWorldPosition(uniform.direction)
+        .sub(light.getWorldPosition(_position));
+    });
+    if (defines.NUM_ENTITIES !== `${entities.length}`) {
+      defines.NUM_ENTITIES = `${entities.length}`;
       raymarcher.material.needsUpdate = true;
     }
     renderer.getDrawingBufferSize(_size).multiplyScalar(resolution).floor();
