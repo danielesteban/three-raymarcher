@@ -13,7 +13,6 @@ import {
   RawShaderMaterial,
   Vector2,
   Vector3,
-  Vector4,
   WebGLRenderTarget,
 } from 'three';
 import raymarcherFragment from './shaders/raymarcher.frag';
