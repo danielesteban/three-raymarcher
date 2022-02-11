@@ -1,5 +1,6 @@
 import {
   BoxGeometry,
+  Color,
   CylinderGeometry,
   DepthTexture,
   IcosahedronGeometry,
@@ -28,8 +29,12 @@ const _size = new Vector2();
 
 class Raymarcher extends Mesh {
   constructor({
-    entities = [{ color: new Vector3(), position: new Vector3(), rotation: new Vector4(), scale: new Vector3() }],
-    lightDirection = new Vector3(-1.0, -1.0, -1.0),
+    blending = 0.5,
+    entities = [{ color: new Color(), position: new Vector3(), rotation: new Vector4(), scale: new Vector3() }],
+    envMap = null,
+    envMapIntensity = 0.3,
+    lightDirection = new Vector3(-1, -1, -1),
+    lightIntensity = 0.7,
     resolution = 1,
   } = {}) {
     const plane = new PlaneGeometry(2, 2, 1, 1);
@@ -49,39 +54,81 @@ class Raymarcher extends Mesh {
         },
       })
     );
+    const material = new RawShaderMaterial({
+      glslVersion: GLSL3,
+      vertexShader: raymarcherVertex,
+      fragmentShader: raymarcherFragment,
+      defines: {
+        MIN_DISTANCE: '0.01',
+        MAX_DISTANCE: '1000.0',
+        MAX_ENTITIES: `${entities.length}`,
+        MAX_ITERATIONS: '256',
+        ENVMAP_TYPE_CUBE_UV: !!envMap,
+      },
+      uniforms: {
+        aspect: { value: new Vector2() },
+        blending: { value: blending },
+        camera: { value: new Vector3() },
+        cameraDirection: { value: new Vector3() },
+        entities: {
+          value: entities,
+          properties: {
+            color: {},
+            position: {},
+            rotation: {},
+            scale: {},
+            shape: {},
+          },
+        },
+        envMap: { value: envMap },
+        envMapIntensity: { value: envMapIntensity },
+        lightDirection: { value: lightDirection },
+        lightIntensity: { value: lightIntensity },
+      },
+    });
+    const { defines, uniforms } = material;
     this.userData = {
-      entities,
-      lightDirection,
-      raymarcher: new Mesh(
-        plane,
-        new RawShaderMaterial({
-          glslVersion: GLSL3,
-          vertexShader: raymarcherVertex,
-          fragmentShader: raymarcherFragment,
-          defines: {
-            MIN_DISTANCE: '0.01',
-            MAX_DISTANCE: '1000.0',
-            MAX_ENTITIES: `${entities.length}`,
-            MAX_ITERATIONS: '256',
-          },
-          uniforms: {
-            aspect: { value: new Vector2() },
-            camera: { value: new Vector3() },
-            cameraDirection: { value: new Vector3() },
-            entities: {
-              value: entities,
-              properties: {
-                color: {},
-                position: {},
-                rotation: {},
-                scale: {},
-                shape: {},
-              },
-            },
-            lightDirection: { value: lightDirection },
-          },
-        })
-      ),
+      get blending() {
+        return uniforms.blending.value;
+      },
+      set blending(value) {
+        uniforms.blending.value = value;
+      },
+      get entities() {
+        return uniforms.entities.value;
+      },
+      set entities(value) {
+        uniforms.entities.value = value;
+      },
+      get envMap() {
+        return uniforms.envMap.value;
+      },
+      set envMap(value) {
+        uniforms.envMap.value = value;
+        if (defines.ENVMAP_TYPE_CUBE_UV !== !!value) {
+          defines.ENVMAP_TYPE_CUBE_UV = !!value;
+          material.needsUpdate = true;
+        }
+      },
+      get envMapIntensity() {
+        return uniforms.envMapIntensity.value;
+      },
+      set envMapIntensity(value) {
+        uniforms.envMapIntensity.value = value;
+      },
+      get lightDirection() {
+        return uniforms.lightDirection.value;
+      },
+      set lightDirection(value) {
+        uniforms.lightDirection.value = value;
+      },
+      get lightIntensity() {
+        return uniforms.lightIntensity.value;
+      },
+      set lightIntensity(value) {
+        uniforms.lightIntensity.value = value;
+      },
+      raymarcher: new Mesh(plane, material),
       resolution,
       target,
     };
@@ -90,20 +137,21 @@ class Raymarcher extends Mesh {
   }
 
   copy(source) {
-    const { userData: { raymarcher: { material: { uniforms } } } } = this;
-    const { userData: { entities, lightDirection, resolution } } = source;
-    this.userData = {
-      ...this.userData,
-      entities: uniforms.entities.value = entities.map(({ color, position, rotation, scale, shape }) => ({
-        color: color.clone(),
-        position: position.clone(),
-        rotation: rotation.clone(),
-        scale: scale.clone(),
-        shape: shape,
-      })),
-      lightDirection: uniforms.lightDirection.value = lightDirection.clone(),
-      resolution,
-    };
+    const { userData } = this;
+    const { userData: { blending, entities, envMap, envMapIntensity, lightDirection, lightIntensity, resolution } } = source;
+    userData.blending = blending;
+    userData.entities = entities.map(({ color, position, rotation, scale, shape }) => ({
+      color: color.clone(),
+      position: position.clone(),
+      rotation: rotation.clone(),
+      scale: scale.clone(),
+      shape: shape,
+    }));
+    userData.envMap = envMap;
+    userData.envMapIntensity = envMapIntensity;
+    userData.lightDirection = lightDirection.clone();
+    userData.lightIntensity = lightIntensity;
+    userData.resolution = resolution;
     return this;
   }
 
@@ -120,8 +168,11 @@ class Raymarcher extends Mesh {
   onBeforeRender(renderer, s, camera) {
     const { userData: { entities, resolution, raymarcher, target } } = this;
     const { material: { defines, uniforms } } = raymarcher;
-    defines.MAX_ENTITIES = `${entities.length}`;
-    renderer.getDrawingBufferSize(_size).multiplyScalar(resolution);
+    if (defines.MAX_ENTITIES !== `${entities.length}`) {
+      defines.MAX_ENTITIES = `${entities.length}`;
+      raymarcher.material.needsUpdate = true;
+    }
+    renderer.getDrawingBufferSize(_size).multiplyScalar(resolution).floor();
     if (target.width !== _size.x || target.height !== _size.y) {
       target.setSize(_size.x, _size.y);
       uniforms.aspect.value.set(

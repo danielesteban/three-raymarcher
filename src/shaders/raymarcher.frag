@@ -1,4 +1,5 @@
 precision highp float;
+precision highp int;
 
 struct Entity {
   vec3 color;
@@ -15,18 +16,22 @@ struct SDF {
 
 out vec4 fragColor;
 in vec3 ray;
+uniform float blending;
 uniform vec3 camera;
 uniform vec3 cameraDirection;
 uniform vec3 cameraPosition;
 uniform Entity entities[MAX_ENTITIES];
+uniform sampler2D envMap;
+uniform float envMapIntensity;
 uniform vec3 lightDirection;
+uniform float lightIntensity;
+
+#define texture2D texture
+#include <cube_uv_reflection_fragment>
+#include <encodings_pars_fragment>
 
 vec3 applyQuaternion(const in vec3 p, const in vec4 q) {
   return p + 2.0 * cross(-q.xyz, cross(-q.xyz, p) + q.w * p);
-}
-
-vec4 linearTosRGB(const in vec4 value) {
-  return vec4(mix(pow(value.rgb, vec3(0.41666)) * 1.055 - vec3(0.055), value.rgb * 12.92, vec3(lessThanEqual(value.rgb, vec3(0.0031308)))), value.a);
 }
 
 float sdBox(const in vec3 p, const in vec3 r) {
@@ -69,13 +74,13 @@ SDF opSmoothUnion(const in SDF a, const in SDF b, const in float k) {
 SDF map(const in vec3 p) {
   SDF scene = sdEntity(p, entities[0]);
   for (int i = 1; i < MAX_ENTITIES; i++) {
-    scene = opSmoothUnion(scene, sdEntity(p, entities[i]), 0.5);
+    scene = opSmoothUnion(scene, sdEntity(p, entities[i]), blending);
   }
   return scene;
 }
 
 vec3 getNormal(const in vec3 p) {
-  const vec2 o = vec2(0.01, 0);
+  const vec2 o = vec2(0.001, 0);
   return normalize(
     map(p).distance - vec3(
       map(p - o.xyy).distance,
@@ -85,13 +90,17 @@ vec3 getNormal(const in vec3 p) {
   );
 }
 
-float getDirectLight(const in vec3 position, const in vec3 normal) {
+vec3 getLight(const in vec3 position, const in vec3 normal) {
+  #ifdef ENVMAP_TYPE_CUBE_UV
+    vec3 ambient = textureCubeUV(envMap, normal, 1.0).rgb;
+  #else
+    vec3 ambient = vec3(1.0);
+  #endif
   vec3 direction = normalize(-lightDirection);
   vec3 halfway = normalize(direction + normalize(cameraPosition - position));
-  const float ambient = 0.1;
-  float diffuse = max(dot(direction, normal), 0.0) * 0.7;
-  float specular = pow(max(dot(normal, halfway), 0.0), 32.0) * 0.3;
-  return ambient + diffuse + specular;
+  float diffuse = max(dot(direction, normal), 0.0);
+  float specular = pow(max(dot(normal, halfway), 0.0), 32.0) * 0.5;
+  return ambient * envMapIntensity + vec3(diffuse + specular) * lightIntensity;
 }
 
 void main() {
@@ -110,8 +119,8 @@ void main() {
   if (step.distance > MIN_DISTANCE) {
     discard;
   }
-  float light = getDirectLight(position, getNormal(position));
-  fragColor = clamp(linearTosRGB(vec4(step.color * light, 1.0)), 0.0, 1.0);
+  vec3 light = getLight(position, getNormal(position));
+  fragColor = clamp(LinearTosRGB(vec4(step.color * light, 1.0)), 0.0, 1.0);
   float depth = camera.y + camera.z / (-distance * dot(cameraDirection, ray));
   gl_FragDepth = (gl_DepthRange.diff * depth + gl_DepthRange.near + gl_DepthRange.far) / 2.0;
 }

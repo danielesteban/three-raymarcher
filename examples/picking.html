@@ -14,6 +14,7 @@
       {
         "imports": {
           "three": "https://cdn.jsdelivr.net/npm/three@0.137.5/build/three.module.js",
+          "three-environment": "https://cdn.jsdelivr.net/npm/three@0.137.5/examples/jsm/environments/RoomEnvironment.js",
           "three-orbit": "https://cdn.jsdelivr.net/npm/three@0.137.5/examples/jsm/controls/OrbitControls.js",
           "three-stats": "https://cdn.jsdelivr.net/npm/three@0.137.5/examples/jsm/libs/stats.module.js",
           "three-raymarcher": "../module.js"
@@ -24,6 +25,7 @@
       import {
         Color,
         PerspectiveCamera,
+        PMREMGenerator,
         PolarGridHelper,
         Quaternion,
         Raycaster,
@@ -33,6 +35,7 @@
         Vector3,
         WebGLRenderer,
       } from 'three';
+      import { RoomEnvironment } from 'three-environment';
       import { OrbitControls } from 'three-orbit';
       import Stats from 'three-stats';
       import Raymarcher from 'three-raymarcher';
@@ -65,7 +68,7 @@
       grid.material.opacity = 0.1;
       scene.add(grid);
 
-      camera.position.set(0, 8, 8);
+      camera.position.set(0, 4, 8);
       controls.target.set(0, 4, 0);
       controls.enableDamping = true;
 
@@ -89,6 +92,7 @@
             shape,
           };
         }),
+        envMap: (new PMREMGenerator(renderer)).fromScene(new RoomEnvironment()).texture,
         resolution: 0.5,
       });
       scene.add(raymarcher);
