@@ -5,7 +5,8 @@
 ### Examples
 
  * Animation: [glitch.com/~three-raymarcher](https://glitch.com/edit/#!/three-raymarcher)
- * Picking: [glitch.com/~three-raymarcher-picking](https://glitch.com/edit/#!/three-raymarcher-picking)
+ * Interactive: [glitch.com/~three-raymarcher-interactive](https://glitch.com/edit/#!/three-raymarcher-interactive)
+ * Transform: [glitch.com/~three-raymarcher-transform](https://glitch.com/edit/#!/three-raymarcher-transform)
 
 ### Installation
 
