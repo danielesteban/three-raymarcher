@@ -136,19 +136,22 @@
 
       const raycaster = new Raycaster();
       const pointer = new Vector2();
-      window.addEventListener('mousedown', ({ clientX, clientY }) => {
-        pointer.x = (clientX / window.innerWidth) * 2 - 1;
-        pointer.y = -(clientY / window.innerHeight) * 2 + 1;
-        raycaster.setFromCamera(pointer, camera);
-        if (controls.enabled) {
-          const [hit] = raycaster.intersectObject(raymarcher);
-          if (hit) {
-            attach(hit.entity);
-          } else {
-            transform.detach();
-          }
-          needsUpdate = true;
+      window.addEventListener('mousedown', ({ button, clientX, clientY }) => {
+        if (button !== 0 || !controls.enabled) {
+          return;
         }
+        pointer.set(
+          (clientX / window.innerWidth) * 2 - 1,
+          -(clientY / window.innerHeight) * 2 + 1
+        );
+        raycaster.setFromCamera(pointer, camera);
+        const [hit] = raycaster.intersectObject(raymarcher);
+        if (hit) {
+          attach(hit.entity);
+        } else {
+          transform.detach();
+        }
+        needsUpdate = true;
       }, false);
 
       window.addEventListener('keydown', ({ keyCode }) => {
