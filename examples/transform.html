@@ -157,7 +157,6 @@
         pointer.y = -(clientY / window.innerHeight) * 2 + 1;
         raycaster.setFromCamera(pointer, camera);
         if (controls.enabled) {
-          pointer.isDown = false;
           const [hit] = raycaster.intersectObject(raymarcher);
           if (hit) {
             attach(hit.entity);
