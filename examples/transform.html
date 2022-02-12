@@ -56,11 +56,13 @@
       import { TransformControls } from 'three-transform';
       import Raymarcher from 'three-raymarcher';
 
+      let needsUpdate = true;
       const renderer = new WebGLRenderer();
       renderer.encoding = sRGBEncoding;
       renderer.setSize(window.innerWidth, window.innerHeight);
       const camera = new PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.01, 1000);
       const controls = new OrbitControls(camera, renderer.domElement);
+      controls.addEventListener('change', () => { needsUpdate = true; });
       document.getElementById('renderer').appendChild(renderer.domElement);
       window.addEventListener('resize', () => {
         renderer.setSize(window.innerWidth, window.innerHeight);
@@ -110,46 +112,27 @@
       });
       scene.add(raymarcher);
 
-      const dummy = new Group();
-      const attach = (entity) => {
-        dummy.entity = entity;
-        dummy.position.copy(entity.position);
-        dummy.quaternion.copy(entity.rotation);
-        dummy.scale.copy(entity.scale);
-        transform.attach(dummy);
-      };
       const transform = new TransformControls(camera, renderer.domElement);
+      transform.addEventListener('change', () => { needsUpdate = true; });
       transform.addEventListener('dragging-changed', ({ value }) => { controls.enabled = !value; });
+
+      const object = new Group();
+      const attach = (entity) => {
+        object.entity = entity;
+        object.position.copy(entity.position);
+        object.quaternion.copy(entity.rotation);
+        object.scale.copy(entity.scale);
+        transform.attach(object);
+      };
       transform.addEventListener('objectChange', () => {
-        const { entity } = dummy;
-        entity.position.copy(dummy.position);
-        entity.rotation.copy(dummy.quaternion);
-        entity.scale.copy(dummy.scale);
+        const { entity, position, quaternion, scale } = object;
+        entity.position.copy(position);
+        entity.rotation.copy(quaternion);
+        entity.scale.copy(scale);
       });
-      scene.add(dummy);
+      scene.add(object);
       scene.add(transform);
       attach(raymarcher.userData.entities[0]);
-
-      window.addEventListener('keydown', ({ keyCode }) => {
-        switch (keyCode) {
-          case 81: // Q
-            transform.setSpace(transform.space === 'local' ? 'world' : 'local');
-            break;
-          case 87: // W
-            transform.setMode('translate');
-            break;
-          case 69: // E
-            transform.setMode('rotate');
-            break;
-          case 82: // R
-            transform.setMode('scale');
-            break;
-        }
-      });
-
-      let needsUpdate = true;
-      controls.addEventListener('change', () => { needsUpdate = true; });
-      transform.addEventListener('change', () => { needsUpdate = true; });
 
       const raycaster = new Raycaster();
       const pointer = new Vector2();
@@ -167,6 +150,23 @@
           needsUpdate = true;
         }
       }, false);
+
+      window.addEventListener('keydown', ({ keyCode }) => {
+        switch (keyCode) {
+          case 81: // Q
+            transform.setSpace(transform.space === 'local' ? 'world' : 'local');
+            break;
+          case 87: // W
+            transform.setMode('translate');
+            break;
+          case 69: // E
+            transform.setMode('rotate');
+            break;
+          case 82: // R
+            transform.setMode('scale');
+            break;
+        }
+      });
 
       renderer.setAnimationLoop(() => {
         if (!needsUpdate) {
