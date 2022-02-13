@@ -61,6 +61,36 @@ renderer.setAnimationLoop(() => (
 ));
 ```
 
+### Lighting
+
+three-raymarcher uses a DNPBR (definitely not phisically based rendering) lighting model:
+
+##### Indirect Diffuse
+
+ * Assign a CubeUVMap texture to `raymarcher.userData.envMap`
+ * You can control the intensity with `raymarcher.userData.envMapIntensity`
+ * If you don't set an environment it will use vec3(envMapIntensity) as the ambient light
+
+##### Indirect Specular
+
+Not yet implemented. Coming soon, maybe.
+
+##### Direct Diffuse & Specular
+
+three-raymarcher will automatically use any three.js [DirectionalLight](https://threejs.org/docs/api/en/lights/DirectionalLight) in the scene.
+
+### Raycasting
+
+three-raymarcher supports the three.js [Raycaster](https://threejs.org/docs/api/en/core/Raycaster) out of the box:
+
+```js
+const [hit] = raycaster.intersectObject(raymarcher);
+if (hit) {
+  console.log(hit.entityId); // The index of the intersected entity
+  console.log(hit.entity); // A reference to the intersected entity
+}
+```
+
 ### Module dev environment
 
 ```bash
