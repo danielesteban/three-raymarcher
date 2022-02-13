@@ -7,6 +7,7 @@
  * Animation: [glitch.com/~three-raymarcher](https://glitch.com/edit/#!/three-raymarcher)
  * Interactive: [glitch.com/~three-raymarcher-interactive](https://glitch.com/edit/#!/three-raymarcher-interactive)
  * Transform: [glitch.com/~three-raymarcher-transform](https://glitch.com/edit/#!/three-raymarcher-transform)
+ * react-three-fiber: [codesandbox.io/s/three-raymarcher-3xdor](https://codesandbox.io/s/three-raymarcher-3xdor)
 
 ### Installation
 
