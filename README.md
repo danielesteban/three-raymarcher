@@ -66,19 +66,25 @@ renderer.setAnimationLoop(() => (
 
 three-raymarcher uses a DNPBR (definitely not phisically based rendering) lighting model:
 
-##### Indirect Diffuse
+##### Indirect diffuse
 
- * Assign a CubeUVMap texture to `raymarcher.userData.envMap`
- * You can control the intensity with `raymarcher.userData.envMapIntensity`
- * If you don't set an environment it will use vec3(envMapIntensity) as the ambient light
+Assign a CubeUVMap texture to `userData.envMap` and control it's intensity with `userData.envMapIntensity`.
 
-##### Indirect Specular
+If you don't set an envMap, the shader will use `vec3(envMapIntensity)` as the ambient light.
+
+##### Indirect specular
 
 Not yet implemented. Coming soon, maybe.
 
-##### Direct Diffuse & Specular
+##### Direct diffuse & specular
 
 three-raymarcher will automatically use any three.js [DirectionalLight](https://threejs.org/docs/api/en/lights/DirectionalLight) in the scene.
+
+### Raymarching
+
+`userData.blending` controls the global smoothing of the union operations.
+
+You can increase the performance by setting `userData.resolution` to something less than 1. In most of the examples is set to 0.5 (2x downsampling), which seems to give the best quality/performance trade-off.
 
 ### Raycasting
 
