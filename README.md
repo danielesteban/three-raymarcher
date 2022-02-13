@@ -98,7 +98,9 @@ if (hit) {
 }
 ```
 
-### Module dev environment
+### Want to contribute?
+
+Here's how to setup the module dev environment:
 
 ```bash
 # clone this repo
