@@ -1,8 +1,14 @@
 precision highp float;
 precision highp int;
 
+struct Bounds {
+  vec3 center;
+  float radius;
+};
+
 struct Entity {
   vec3 color;
+  int operation;
   vec3 position;
   vec4 rotation;
   vec3 scale;
@@ -22,15 +28,17 @@ struct SDF {
 out vec4 fragColor;
 in vec3 ray;
 uniform float blending;
+uniform Bounds bounds;
 uniform vec3 camera;
 uniform vec3 cameraDirection;
 uniform vec3 cameraPosition;
-uniform Entity entities[NUM_ENTITIES];
 uniform sampler2D envMap;
 uniform float envMapIntensity;
 #if NUM_LIGHTS > 0
 uniform Light lights[NUM_LIGHTS];
 #endif
+uniform int numEntities;
+uniform Entity entities[MAX_ENTITIES];
 
 #define texture2D texture
 #include <cube_uv_reflection_fragment>
@@ -56,6 +64,10 @@ float sdEllipsoid(const in vec3 p, const in vec3 r) {
   return k0*(k0-1.0)/k1;
 }
 
+float sdSphere(const in vec3 p, const in float r) {
+  return length(p)-r;
+}
+
 SDF sdEntity(in vec3 p, const in Entity e) {
   p = applyQuaternion(p - e.position, normalize(e.rotation));
   switch (e.shape) {
@@ -77,10 +89,26 @@ SDF opSmoothUnion(const in SDF a, const in SDF b, const in float k) {
   );
 }
 
+SDF opSmoothSubtraction(const in SDF a, const in SDF b, const in float k) {
+  float h = clamp(0.5 - 0.5 * (a.distance + b.distance) / k, 0.0, 1.0);
+  return SDF(
+    mix(a.color, b.color, h),
+    mix(a.distance, -b.distance, h) + k*h*(1.0-h)
+  );
+}
+
 SDF map(const in vec3 p) {
   SDF scene = sdEntity(p, entities[0]);
-  for (int i = 1; i < NUM_ENTITIES; i++) {
-    scene = opSmoothUnion(scene, sdEntity(p, entities[i]), blending);
+  for (int i = 1, l = min(numEntities, MAX_ENTITIES); i < l; i++) {
+    switch (entities[i].operation) {
+      default:
+      case 0:
+        scene = opSmoothUnion(scene, sdEntity(p, entities[i]), blending);
+        break;
+      case 1:
+        scene = opSmoothSubtraction(scene, sdEntity(p, entities[i]), blending);
+        break;
+    }
   }
   return scene;
 }
@@ -125,7 +153,12 @@ void main() {
     step.distance > MIN_DISTANCE && distance < MAX_DISTANCE && iterations < MAX_ITERATIONS;
     iterations++
   ) {
-    step = map(position);
+    float distanceToBounds = sdSphere(position - bounds.center, bounds.radius);
+    if (distanceToBounds > MIN_DISTANCE) {
+      step.distance = distanceToBounds;
+    } else {
+      step = map(position);
+    }
     position += ray * step.distance;
     distance += step.distance;
   }

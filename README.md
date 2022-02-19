@@ -31,28 +31,37 @@ document.body.appendChild(renderer.domElement);
 
 const scene = new Scene();
 const raymarcher = new Raymarcher({
-  entities: [
-    {
-      color: new Color(0x0000FF),
-      position: new Vector3(-1.5, 0, -4),
-      rotation: new Quaternion(0, 0, 0, 1),
-      scale: new Vector3(1, 1, 1),
-      shape: Raymarcher.shapes.box,
-    },
-    {
-      color: new Color(0x00FF00),
-      position: new Vector3(0, 0, -4),
-      rotation: new Quaternion(0, 0, 0, 1),
-      scale: new Vector3(0.5, 1, 0.5),
-      shape: Raymarcher.shapes.capsule,
-    },
-    {
-      color: new Color(0xFF0000),
-      position: new Vector3(1.5, 0, -4),
-      rotation: new Quaternion(0, 0, 0, 1),
-      scale: new Vector3(1, 1, 1),
-      shape: Raymarcher.shapes.sphere,
-    }
+  layers: [
+    [
+      {
+        color: new Color(0xFF0000),
+        operation: Raymarcher.operations.union,
+        position: new Vector3(-1.5, 0, -4),
+        rotation: new Quaternion(0, 0, 0, 1),
+        scale: new Vector3(1, 1, 1),
+        shape: Raymarcher.shapes.box,
+      },
+    ],
+    [
+      {
+        color: new Color(0x00FF00),
+        operation: Raymarcher.operations.union,
+        position: new Vector3(0, 0, -4),
+        rotation: new Quaternion(0, 0, 0, 1),
+        scale: new Vector3(0.5, 1, 0.5),
+        shape: Raymarcher.shapes.capsule,
+      },
+    ],
+    [
+      {
+        color: new Color(0x0000FF),
+        operation: Raymarcher.operations.union,
+        position: new Vector3(1.5, 0, -4),
+        rotation: new Quaternion(0, 0, 0, 1),
+        scale: new Vector3(1, 1, 1),
+        shape: Raymarcher.shapes.sphere,
+      }
+    ],
   ],
 });
 scene.add(raymarcher);
@@ -93,8 +102,12 @@ three-raymarcher supports the three.js [Raycaster](https://threejs.org/docs/api/
 ```js
 const [hit] = raycaster.intersectObject(raymarcher);
 if (hit) {
-  console.log(hit.entityId); // The index of the intersected entity
-  console.log(hit.entity); // A reference to the intersected entity
+  console.log(
+    hit.entityId, // The index of the intersected entity
+    hit.entity, // A reference to the intersected entity
+    hit.layerId, // The index of the intersected entity layer
+    hit.layer, // A reference to the intersected entity layer
+  );
 }
 ```
 

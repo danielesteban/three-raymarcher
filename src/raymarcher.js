@@ -11,6 +11,8 @@ import {
   PlaneGeometry,
   Quaternion,
   RawShaderMaterial,
+  Sphere,
+  UnsignedShortType,
   Vector2,
   Vector3,
   WebGLRenderTarget,
@@ -21,25 +23,29 @@ import screenFragment from './shaders/screen.frag';
 import screenVertex from './shaders/screen.vert';
 
 const _colliders = [
-  new Mesh(new BoxGeometry(1, 1, 1)),
-  new Mesh(new CylinderGeometry(0.5, 0.5, 1)),
-  new Mesh(new IcosahedronGeometry(0.5, 2)),
-];
+  new BoxGeometry(1, 1, 1),
+  new CylinderGeometry(0.5, 0.5, 1),
+  new IcosahedronGeometry(0.5, 2),
+].map((geometry) => {
+  geometry.computeBoundingSphere();
+  return new Mesh(geometry);
+});
 const _position = new Vector3();
 const _size = new Vector2();
+const _sphere = new Sphere();
 
 class Raymarcher extends Mesh {
   constructor({
     blending = 0.5,
-    entities = [{ color: new Color(), position: new Vector3(), rotation: new Quaternion(), scale: new Vector3() }],
     envMap = null,
     envMapIntensity = 1,
+    layers = [],
     resolution = 1,
   } = {}) {
     const plane = new PlaneGeometry(2, 2, 1, 1);
     plane.deleteAttribute('normal');
     plane.deleteAttribute('uv');
-    const target = new WebGLRenderTarget(1, 1, { depthTexture: new DepthTexture() });
+    const target = new WebGLRenderTarget(1, 1, { depthTexture: new DepthTexture(1, 1, UnsignedShortType) });
     super(
       plane,
       new RawShaderMaterial({
@@ -58,28 +64,19 @@ class Raymarcher extends Mesh {
       vertexShader: raymarcherVertex,
       fragmentShader: raymarcherFragment,
       defines: {
-        MIN_DISTANCE: '0.01',
+        MIN_DISTANCE: '0.05',
         MAX_DISTANCE: '1000.0',
-        MAX_ITERATIONS: '256',
-        NUM_ENTITIES: `${entities.length}`,
+        MAX_ENTITIES: 0,
+        MAX_ITERATIONS: 200,
         NUM_LIGHTS: 0,
         ENVMAP_TYPE_CUBE_UV: !!envMap,
       },
       uniforms: {
         aspect: { value: new Vector2() },
         blending: { value: blending },
+        bounds: { value: new Sphere() },
         camera: { value: new Vector3() },
         cameraDirection: { value: new Vector3() },
-        entities: {
-          value: entities,
-          properties: {
-            color: {},
-            position: {},
-            rotation: {},
-            scale: {},
-            shape: {},
-          },
-        },
         envMap: { value: envMap },
         envMapIntensity: { value: envMapIntensity },
         lights: {
@@ -87,6 +84,18 @@ class Raymarcher extends Mesh {
           properties: {
             color: {},
             direction: {},
+          },
+        },
+        numEntities: { value: 0 },
+        entities: {
+          value: [],
+          properties: {
+            color: {},
+            operation: {},
+            position: {},
+            rotation: {},
+            scale: {},
+            shape: {},
           },
         },
       },
@@ -98,12 +107,6 @@ class Raymarcher extends Mesh {
       },
       set blending(value) {
         uniforms.blending.value = value;
-      },
-      get entities() {
-        return uniforms.entities.value;
-      },
-      set entities(value) {
-        uniforms.entities.value = value;
       },
       get envMap() {
         return uniforms.envMap.value;
@@ -121,6 +124,7 @@ class Raymarcher extends Mesh {
       set envMapIntensity(value) {
         uniforms.envMapIntensity.value = value;
       },
+      layers,
       raymarcher: new Mesh(plane, material),
       resolution,
       target,
@@ -131,17 +135,18 @@ class Raymarcher extends Mesh {
 
   copy(source) {
     const { userData } = this;
-    const { userData: { blending, entities, envMap, envMapIntensity, resolution } } = source;
+    const { userData: { blending, envMap, envMapIntensity, layers, resolution } } = source;
     userData.blending = blending;
-    userData.entities = entities.map(({ color, position, rotation, scale, shape }) => ({
+    userData.envMap = envMap;
+    userData.envMapIntensity = envMapIntensity;
+    userData.layers = layers.map((layer) => layer.map(({ color, operation, position, rotation, scale, shape }) => ({
       color: color.clone(),
+      operation,
       position: position.clone(),
       rotation: rotation.clone(),
       scale: scale.clone(),
-      shape: shape,
-    }));
-    userData.envMap = envMap;
-    userData.envMapIntensity = envMapIntensity;
+      shape,
+    })));
     userData.resolution = resolution;
     return this;
   }
@@ -157,16 +162,17 @@ class Raymarcher extends Mesh {
   }
 
   onBeforeRender(renderer, scene, camera) {
-    const { userData: { entities, resolution, raymarcher, target } } = this;
+    const { userData: { layers, resolution, raymarcher, target } } = this;
     const { material: { defines, uniforms } } = raymarcher;
+
     const lights = [];
     scene.traverseVisible((light) => {
       if (light.isDirectionalLight && light.layers.test(camera.layers)) {
         lights.push(light);
       }
     });
-    if (defines.NUM_LIGHTS !== `${lights.length}`) {
-      defines.NUM_LIGHTS = `${lights.length}`;
+    if (defines.NUM_LIGHTS !== lights.length) {
+      defines.NUM_LIGHTS = lights.length;
       uniforms.lights.value = lights.map(() => ({ color: new Color(), direction: new Vector3() }));
       raymarcher.material.needsUpdate = true;
     }
@@ -176,10 +182,7 @@ class Raymarcher extends Mesh {
       light.target.getWorldPosition(uniform.direction)
         .sub(light.getWorldPosition(_position));
     });
-    if (defines.NUM_ENTITIES !== `${entities.length}`) {
-      defines.NUM_ENTITIES = `${entities.length}`;
-      raymarcher.material.needsUpdate = true;
-    }
+
     renderer.getDrawingBufferSize(_size).multiplyScalar(resolution).floor();
     if (target.width !== _size.x || target.height !== _size.y) {
       target.setSize(_size.x, _size.y);
@@ -195,15 +198,57 @@ class Raymarcher extends Mesh {
       );
     }
     camera.getWorldDirection(uniforms.cameraDirection.value);
+
+    const currentAutoClear = renderer.autoClear;
     const currentRenderTarget = renderer.getRenderTarget();
     const currentXrEnabled = renderer.xr.enabled;
     const currentShadowAutoUpdate = renderer.shadowMap.autoUpdate;
+    renderer.autoClear = false;
     renderer.xr.enabled = false;
     renderer.shadowMap.autoUpdate = false;
     renderer.setRenderTarget(target);
     renderer.state.buffers.depth.setMask(true);
-    if (!renderer.autoClear) renderer.clear();
-    renderer.render(raymarcher, camera);
+    
+    renderer.clear();
+    layers.forEach((entities) => {
+      if (defines.MAX_ENTITIES < entities.length) {
+        defines.MAX_ENTITIES = entities.length;
+        uniforms.entities.value = [...Array(entities.length)].map(() => ({
+          color: new Color(),
+          operation: 0,
+          position: new Vector3(),
+          rotation: new Quaternion(),
+          scale: new Vector3(),
+          shape: 0,
+        }));
+        raymarcher.material.needsUpdate = true;
+      }
+      uniforms.bounds.value.makeEmpty();
+      uniforms.numEntities.value = entities.length;
+      entities.forEach(({ color, operation, position, rotation, scale, shape }, i) => {
+        const uniform = uniforms.entities.value[i];
+        uniform.color.copy(color);
+        uniform.operation = operation;
+        uniform.position.copy(position);
+        uniform.rotation.copy(rotation);
+        uniform.scale.copy(scale);
+        uniform.shape = shape;
+        const collider = _colliders[shape];
+        collider.position.copy(position);
+        collider.quaternion.copy(rotation);
+        collider.scale.copy(scale);
+        if (shape === Raymarcher.shapes.capsule) {
+          collider.scale.z = collider.scale.x;
+        }
+        collider.updateMatrixWorld();
+        uniforms.bounds.value.union(
+          _sphere.copy(collider.geometry.boundingSphere).applyMatrix4(collider.matrixWorld)
+        );
+      });
+      renderer.render(raymarcher, camera);
+    });
+
+    renderer.autoClear = currentAutoClear;
     renderer.xr.enabled = currentXrEnabled;
     renderer.shadowMap.autoUpdate = currentShadowAutoUpdate;
     renderer.setRenderTarget(currentRenderTarget);
@@ -211,8 +256,8 @@ class Raymarcher extends Mesh {
   }
 
   raycast(raycaster, intersects) {
-    const { userData: { entities } } = this;
-    entities.forEach((entity, entityId) => {
+    const { userData: { layers } } = this;
+    layers.forEach((layer, layerId) => layer.forEach((entity, entityId) => {
       const { position, rotation, scale, shape } = entity;
       const collider = _colliders[shape];
       collider.position.copy(position);
@@ -225,14 +270,21 @@ class Raymarcher extends Mesh {
       const entityIntersects = [];
       collider.raycast(raycaster, entityIntersects);
       entityIntersects.forEach((intersect) => {
-        intersect.entityId = entityId;
         intersect.entity = entity;
+        intersect.entityId = entityId;
+        intersect.layer = layer;
+        intersect.layerId = layerId;
         intersect.object = this;
         intersects.push(intersect);
       });
-    });
+    }));
   }
 }
+
+Raymarcher.operations = {
+  union: 0,
+  substraction: 1,
+};
 
 Raymarcher.shapes = {
   box: 0,
