@@ -9,7 +9,6 @@ import {
   Math as ThreeMath,
   Mesh,
   PlaneGeometry,
-  Quaternion,
   RawShaderMaterial,
   Sphere,
   UnsignedShortType,
@@ -64,12 +63,12 @@ class Raymarcher extends Mesh {
       vertexShader: raymarcherVertex,
       fragmentShader: raymarcherFragment,
       defines: {
+        ENVMAP_TYPE_CUBE_UV: !!envMap,
         MIN_DISTANCE: '0.05',
         MAX_DISTANCE: '1000.0',
         MAX_ENTITIES: 0,
         MAX_ITERATIONS: 200,
         NUM_LIGHTS: 0,
-        ENVMAP_TYPE_CUBE_UV: !!envMap,
       },
       uniforms: {
         aspect: { value: new Vector2() },
@@ -139,14 +138,7 @@ class Raymarcher extends Mesh {
     userData.blending = blending;
     userData.envMap = envMap;
     userData.envMapIntensity = envMapIntensity;
-    userData.layers = layers.map((layer) => layer.map(({ color, operation, position, rotation, scale, shape }) => ({
-      color: color.clone(),
-      operation,
-      position: position.clone(),
-      rotation: rotation.clone(),
-      scale: scale.clone(),
-      shape,
-    })));
+    userData.layers = layers.map((layer) => layer.map(Raymarcher.cloneEntity));
     userData.resolution = resolution;
     return this;
   }
@@ -213,14 +205,7 @@ class Raymarcher extends Mesh {
     layers.forEach((entities) => {
       if (defines.MAX_ENTITIES < entities.length) {
         defines.MAX_ENTITIES = entities.length;
-        uniforms.entities.value = [...Array(entities.length)].map(() => ({
-          color: new Color(),
-          operation: 0,
-          position: new Vector3(),
-          rotation: new Quaternion(),
-          scale: new Vector3(),
-          shape: 0,
-        }));
+        uniforms.entities.value = entities.map(Raymarcher.cloneEntity);
         raymarcher.material.needsUpdate = true;
       }
       uniforms.bounds.value.makeEmpty();
@@ -234,7 +219,7 @@ class Raymarcher extends Mesh {
         uniform.scale.copy(entity.scale);
         uniform.shape = entity.shape;
 
-        const collider = Raymarcher.getCollider(entity);
+        const collider = Raymarcher.getEntityCollider(entity);
         _sphere.copy(collider.geometry.boundingSphere).applyMatrix4(collider.matrixWorld);
         if (uniforms.bounds.value.isEmpty()) {
           uniforms.bounds.value.copy(_sphere);
@@ -256,7 +241,7 @@ class Raymarcher extends Mesh {
     const { userData: { layers } } = this;
     layers.forEach((layer, layerId) => layer.forEach((entity, entityId) => {
       const entityIntersects = [];
-      Raymarcher.getCollider(entity).raycast(raycaster, entityIntersects);
+      Raymarcher.getEntityCollider(entity).raycast(raycaster, entityIntersects);
       entityIntersects.forEach((intersect) => {
         intersect.entity = entity;
         intersect.entityId = entityId;
@@ -268,7 +253,18 @@ class Raymarcher extends Mesh {
     }));
   }
 
-  static getCollider({ position, rotation, scale, shape }) {
+  static cloneEntity({ color, operation, position, rotation, scale, shape }) {
+    return {
+      color: color.clone(),
+      operation,
+      position: position.clone(),
+      rotation: rotation.clone(),
+      scale: scale.clone(),
+      shape,
+    };
+  }
+
+  static getEntityCollider({ position, rotation, scale, shape }) {
     const collider = _colliders[shape];
     collider.position.copy(position);
     collider.quaternion.copy(rotation);

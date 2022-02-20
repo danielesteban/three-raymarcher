@@ -84,7 +84,7 @@
 
       const { operations, shapes } = Raymarcher;
       const raymarcher = new Raymarcher({
-        layers: [[...Array(24)].map(() => {
+        layers: [Array.from({ length: 24 }, () => {
           const shape = [shapes.box, shapes.capsule, shapes.sphere][Math.floor(Math.random() * 3)];
           return {
             color: new Color(Math.random() * 0xFFFFFF),
