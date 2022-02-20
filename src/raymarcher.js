@@ -157,6 +157,14 @@ class Raymarcher extends Mesh {
     const { userData: { layers, resolution, raymarcher, target } } = this;
     const { material: { defines, uniforms } } = raymarcher;
 
+    layers.forEach((entities) => {
+      if (defines.MAX_ENTITIES < entities.length) {
+        defines.MAX_ENTITIES = entities.length;
+        uniforms.entities.value = entities.map(Raymarcher.cloneEntity);
+        raymarcher.material.needsUpdate = true;
+      }
+    });
+
     const lights = [];
     scene.traverseVisible((light) => {
       if (light.isDirectionalLight && light.layers.test(camera.layers)) {
@@ -203,11 +211,6 @@ class Raymarcher extends Mesh {
     
     renderer.clear();
     layers.forEach((entities) => {
-      if (defines.MAX_ENTITIES < entities.length) {
-        defines.MAX_ENTITIES = entities.length;
-        uniforms.entities.value = entities.map(Raymarcher.cloneEntity);
-        raymarcher.material.needsUpdate = true;
-      }
       uniforms.bounds.value.makeEmpty();
       uniforms.numEntities.value = entities.length;
       entities.forEach((entity, i) => {
@@ -218,9 +221,11 @@ class Raymarcher extends Mesh {
         uniform.rotation.copy(entity.rotation);
         uniform.scale.copy(entity.scale);
         uniform.shape = entity.shape;
-
-        const collider = Raymarcher.getEntityCollider(entity);
-        _sphere.copy(collider.geometry.boundingSphere).applyMatrix4(collider.matrixWorld);
+        const {
+          geometry: { boundingSphere },
+          matrixWorld,
+        } = Raymarcher.getEntityCollider(entity);
+        _sphere.copy(boundingSphere).applyMatrix4(matrixWorld);
         if (uniforms.bounds.value.isEmpty()) {
           uniforms.bounds.value.copy(_sphere);
         } else {
