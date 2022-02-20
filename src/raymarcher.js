@@ -225,25 +225,22 @@ class Raymarcher extends Mesh {
       }
       uniforms.bounds.value.makeEmpty();
       uniforms.numEntities.value = entities.length;
-      entities.forEach(({ color, operation, position, rotation, scale, shape }, i) => {
+      entities.forEach((entity, i) => {
         const uniform = uniforms.entities.value[i];
-        uniform.color.copy(color);
-        uniform.operation = operation;
-        uniform.position.copy(position);
-        uniform.rotation.copy(rotation);
-        uniform.scale.copy(scale);
-        uniform.shape = shape;
-        const collider = _colliders[shape];
-        collider.position.copy(position);
-        collider.quaternion.copy(rotation);
-        collider.scale.copy(scale);
-        if (shape === Raymarcher.shapes.capsule) {
-          collider.scale.z = collider.scale.x;
+        uniform.color.copy(entity.color);
+        uniform.operation = entity.operation;
+        uniform.position.copy(entity.position);
+        uniform.rotation.copy(entity.rotation);
+        uniform.scale.copy(entity.scale);
+        uniform.shape = entity.shape;
+
+        const collider = Raymarcher.getCollider(entity);
+        _sphere.copy(collider.geometry.boundingSphere).applyMatrix4(collider.matrixWorld);
+        if (uniforms.bounds.value.isEmpty()) {
+          uniforms.bounds.value.copy(_sphere);
+        } else {
+          uniforms.bounds.value.union(_sphere);
         }
-        collider.updateMatrixWorld();
-        uniforms.bounds.value.union(
-          _sphere.copy(collider.geometry.boundingSphere).applyMatrix4(collider.matrixWorld)
-        );
       });
       renderer.render(raymarcher, camera);
     });
@@ -258,17 +255,8 @@ class Raymarcher extends Mesh {
   raycast(raycaster, intersects) {
     const { userData: { layers } } = this;
     layers.forEach((layer, layerId) => layer.forEach((entity, entityId) => {
-      const { position, rotation, scale, shape } = entity;
-      const collider = _colliders[shape];
-      collider.position.copy(position);
-      collider.quaternion.copy(rotation);
-      collider.scale.copy(scale);
-      if (shape === Raymarcher.shapes.capsule) {
-        collider.scale.z = collider.scale.x;
-      }
-      collider.updateMatrixWorld();
       const entityIntersects = [];
-      collider.raycast(raycaster, entityIntersects);
+      Raymarcher.getCollider(entity).raycast(raycaster, entityIntersects);
       entityIntersects.forEach((intersect) => {
         intersect.entity = entity;
         intersect.entityId = entityId;
@@ -278,6 +266,18 @@ class Raymarcher extends Mesh {
         intersects.push(intersect);
       });
     }));
+  }
+
+  static getCollider({ position, rotation, scale, shape }) {
+    const collider = _colliders[shape];
+    collider.position.copy(position);
+    collider.quaternion.copy(rotation);
+    collider.scale.copy(scale);
+    if (shape === Raymarcher.shapes.capsule) {
+      collider.scale.z = collider.scale.x;
+    }
+    collider.updateMatrixWorld();
+    return collider;
   }
 }
 
