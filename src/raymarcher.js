@@ -3,10 +3,12 @@ import {
   Color,
   CylinderGeometry,
   DepthTexture,
+  Frustum,
   IcosahedronGeometry,
   LessDepth,
   GLSL3,
   Math as ThreeMath,
+  Matrix4,
   Mesh,
   PlaneGeometry,
   RawShaderMaterial,
@@ -29,7 +31,9 @@ const _colliders = [
   geometry.computeBoundingSphere();
   return new Mesh(geometry);
 });
+const _frustum = new Frustum();
 const _position = new Vector3();
+const _projection = new Matrix4();
 const _size = new Vector2();
 const _sphere = new Sphere();
 
@@ -157,6 +161,10 @@ class Raymarcher extends Mesh {
     const { userData: { layers, resolution, raymarcher, target } } = this;
     const { material: { defines, uniforms } } = raymarcher;
 
+    _frustum.setFromProjectionMatrix(
+      _projection.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse)
+    );
+
     layers.forEach((entities) => {
       if (defines.MAX_ENTITIES < entities.length) {
         defines.MAX_ENTITIES = entities.length;
@@ -232,7 +240,9 @@ class Raymarcher extends Mesh {
           uniforms.bounds.value.union(_sphere);
         }
       });
-      renderer.render(raymarcher, camera);
+      if (_frustum.intersectsSphere(uniforms.bounds.value)) {
+        renderer.render(raymarcher, camera);
+      }
     });
 
     renderer.autoClear = currentAutoClear;
