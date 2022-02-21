@@ -5,7 +5,6 @@ import {
   DepthTexture,
   Frustum,
   IcosahedronGeometry,
-  LessDepth,
   GLSL3,
   Math as ThreeMath,
   Matrix4,
@@ -52,7 +51,6 @@ class Raymarcher extends Mesh {
     super(
       plane,
       new RawShaderMaterial({
-        depthFunc: LessDepth,
         glslVersion: GLSL3,
         vertexShader: screenVertex,
         fragmentShader: screenFragment,
@@ -75,11 +73,13 @@ class Raymarcher extends Mesh {
         NUM_LIGHTS: 0,
       },
       uniforms: {
-        aspect: { value: new Vector2() },
         blending: { value: blending },
         bounds: { value: new Sphere() },
-        camera: { value: new Vector3() },
         cameraDirection: { value: new Vector3() },
+        cameraFar: { value: 0 },
+        cameraFov: { value: 0 },
+        cameraNear: { value: 0 },
+        resolution: { value: new Vector2() },
         envMap: { value: envMap },
         envMapIntensity: { value: envMapIntensity },
         lights: {
@@ -161,10 +161,6 @@ class Raymarcher extends Mesh {
     const { userData: { layers, resolution, raymarcher, target } } = this;
     const { material: { defines, uniforms } } = raymarcher;
 
-    _frustum.setFromProjectionMatrix(
-      _projection.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse)
-    );
-
     layers.forEach((entities) => {
       if (defines.MAX_ENTITIES < entities.length) {
         defines.MAX_ENTITIES = entities.length;
@@ -194,18 +190,16 @@ class Raymarcher extends Mesh {
     renderer.getDrawingBufferSize(_size).multiplyScalar(resolution).floor();
     if (target.width !== _size.x || target.height !== _size.y) {
       target.setSize(_size.x, _size.y);
-      uniforms.aspect.value.set(
-        _size.y / _size.x,
-        _size.x / _size.y
-      );
-      const { near, far, fov } = camera;
-      uniforms.camera.value.set(
-        1.0 / Math.tan(ThreeMath.degToRad(fov) / 2.0),
-        (far + near) / (far - near),
-        (2 * far * near) / (far - near)
-      );
+      uniforms.resolution.value.copy(_size);
     }
+  
     camera.getWorldDirection(uniforms.cameraDirection.value);
+    uniforms.cameraFar.value = camera.far;
+    uniforms.cameraFov.value = ThreeMath.degToRad(camera.fov);
+    uniforms.cameraNear.value = camera.near;
+    _frustum.setFromProjectionMatrix(
+      _projection.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse)
+    );
 
     const currentAutoClear = renderer.autoClear;
     const currentRenderTarget = renderer.getRenderTarget();

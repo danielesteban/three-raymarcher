@@ -29,20 +29,24 @@ out vec4 fragColor;
 in vec3 ray;
 uniform float blending;
 uniform Bounds bounds;
-uniform vec3 camera;
 uniform vec3 cameraDirection;
+uniform float cameraFar;
+uniform float cameraFov;
+uniform float cameraNear;
 uniform vec3 cameraPosition;
+uniform Entity entities[MAX_ENTITIES];
 uniform sampler2D envMap;
 uniform float envMapIntensity;
 #if NUM_LIGHTS > 0
 uniform Light lights[NUM_LIGHTS];
 #endif
 uniform int numEntities;
-uniform Entity entities[MAX_ENTITIES];
+uniform vec2 resolution;
 
 #define texture2D texture
 #include <cube_uv_reflection_fragment>
 #include <encodings_pars_fragment>
+#include <packing>
 
 vec3 applyQuaternion(const in vec3 p, const in vec4 q) {
   return p + 2.0 * cross(-q.xyz, cross(-q.xyz, p) + q.w * p);
@@ -167,6 +171,6 @@ void main() {
   }
   vec3 light = getLight(position, getNormal(position));
   fragColor = clamp(LinearTosRGB(vec4(step.color * light, 1.0)), 0.0, 1.0);
-  float depth = camera.y + camera.z / (-distance * dot(cameraDirection, ray));
-  gl_FragDepth = (gl_DepthRange.diff * depth + gl_DepthRange.near + gl_DepthRange.far) / 2.0;
+  float ndcDepth = (perspectiveDepthToViewZ(-distance * dot(cameraDirection, ray), cameraNear, cameraFar) + 0.5) * 2.0;
+  gl_FragDepth = (gl_DepthRange.diff * ndcDepth + gl_DepthRange.near + gl_DepthRange.far) / 2.0;
 }
