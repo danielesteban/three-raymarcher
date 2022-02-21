@@ -171,6 +171,6 @@ void main() {
   }
   vec3 light = getLight(position, getNormal(position));
   fragColor = clamp(LinearTosRGB(vec4(step.color * light, 1.0)), 0.0, 1.0);
-  float ndcDepth = (perspectiveDepthToViewZ(-distance * dot(cameraDirection, ray), cameraNear, cameraFar) + 0.5) * 2.0;
-  gl_FragDepth = (gl_DepthRange.diff * ndcDepth + gl_DepthRange.near + gl_DepthRange.far) / 2.0;
+  float depth = 1.0 - perspectiveDepthToViewZ(distance * dot(cameraDirection, ray), cameraNear, cameraFar);
+  gl_FragDepth = gl_DepthRange.diff * depth + gl_DepthRange.near;
 }

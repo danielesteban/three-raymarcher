@@ -5,6 +5,7 @@ import {
   DepthTexture,
   Frustum,
   IcosahedronGeometry,
+  LessDepth,
   GLSL3,
   Math as ThreeMath,
   Matrix4,
@@ -51,6 +52,7 @@ class Raymarcher extends Mesh {
     super(
       plane,
       new RawShaderMaterial({
+        depthFunc: LessDepth,
         glslVersion: GLSL3,
         vertexShader: screenVertex,
         fragmentShader: screenFragment,
