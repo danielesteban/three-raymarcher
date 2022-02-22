@@ -84,6 +84,9 @@
 
       const { operations, shapes } = Raymarcher;
       const raymarcher = new Raymarcher({
+        resolution: 0.5,
+        envMap: (new PMREMGenerator(renderer)).fromScene(new RoomEnvironment()).texture,
+        envMapIntensity: 0.6,
         layers: [Array.from({ length: 24 }, () => {
           const shape = [shapes.box, shapes.capsule, shapes.sphere][Math.floor(Math.random() * 3)];
           return {
@@ -103,9 +106,6 @@
             shape,
           };
         })],
-        envMap: (new PMREMGenerator(renderer)).fromScene(new RoomEnvironment()).texture,
-        envMapIntensity: 0.6,
-        resolution: 0.5,
       });
       scene.add(raymarcher);
 

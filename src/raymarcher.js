@@ -5,7 +5,6 @@ import {
   DepthTexture,
   Frustum,
   IcosahedronGeometry,
-  LessDepth,
   GLSL3,
   Math as ThreeMath,
   Matrix4,
@@ -23,6 +22,7 @@ import raymarcherVertex from './shaders/raymarcher.vert';
 import screenFragment from './shaders/screen.frag';
 import screenVertex from './shaders/screen.vert';
 
+const _bounds = [];
 const _colliders = [
   new BoxGeometry(1, 1, 1),
   new CylinderGeometry(0.5, 0.5, 1),
@@ -40,6 +40,7 @@ const _sphere = new Sphere();
 class Raymarcher extends Mesh {
   constructor({
     blending = 0.5,
+    conetracing = false,
     envMap = null,
     envMapIntensity = 1,
     layers = [],
@@ -52,7 +53,6 @@ class Raymarcher extends Mesh {
     super(
       plane,
       new RawShaderMaterial({
-        depthFunc: LessDepth,
         glslVersion: GLSL3,
         vertexShader: screenVertex,
         fragmentShader: screenFragment,
@@ -63,20 +63,23 @@ class Raymarcher extends Mesh {
       })
     );
     const material = new RawShaderMaterial({
+      transparent: !!conetracing,
       glslVersion: GLSL3,
       vertexShader: raymarcherVertex,
       fragmentShader: raymarcherFragment,
       defines: {
+        CONETRACING: !!conetracing,
         ENVMAP_TYPE_CUBE_UV: !!envMap,
-        MIN_DISTANCE: '0.05',
-        MAX_DISTANCE: '1000.0',
         MAX_ENTITIES: 0,
+        MAX_DISTANCE: '1000.0',
         MAX_ITERATIONS: 200,
+        MIN_COVERAGE: '0.02',
+        MIN_DISTANCE: '0.05',
         NUM_LIGHTS: 0,
       },
       uniforms: {
         blending: { value: blending },
-        bounds: { value: new Sphere() },
+        bounds: { value: { center: new Vector3(), radius: 0 } },
         cameraDirection: { value: new Vector3() },
         cameraFar: { value: 0 },
         cameraFov: { value: 0 },
@@ -113,6 +116,16 @@ class Raymarcher extends Mesh {
       set blending(value) {
         uniforms.blending.value = value;
       },
+      get conetracing() {
+        return defines.CONETRACING;
+      },
+      set conetracing(value) {
+        if (defines.CONETRACING !== !!value) {
+          defines.CONETRACING = !!value;
+          material.transparent = !!value;
+          material.needsUpdate = true;
+        }
+      },
       get envMap() {
         return uniforms.envMap.value;
       },
@@ -140,8 +153,9 @@ class Raymarcher extends Mesh {
 
   copy(source) {
     const { userData } = this;
-    const { userData: { blending, envMap, envMapIntensity, layers, resolution } } = source;
+    const { userData: { blending, conetracing, envMap, envMapIntensity, layers, resolution } } = source;
     userData.blending = blending;
+    userData.conetracing = conetracing;
     userData.envMap = envMap;
     userData.envMapIntensity = envMapIntensity;
     userData.layers = layers.map((layer) => layer.map(Raymarcher.cloneEntity));
@@ -163,13 +177,45 @@ class Raymarcher extends Mesh {
     const { userData: { layers, resolution, raymarcher, target } } = this;
     const { material: { defines, uniforms } } = raymarcher;
 
-    layers.forEach((entities) => {
-      if (defines.MAX_ENTITIES < entities.length) {
-        defines.MAX_ENTITIES = entities.length;
-        uniforms.entities.value = entities.map(Raymarcher.cloneEntity);
-        raymarcher.material.needsUpdate = true;
-      }
-    });
+    camera.getWorldDirection(uniforms.cameraDirection.value);
+    uniforms.cameraFar.value = camera.far;
+    uniforms.cameraFov.value = ThreeMath.degToRad(camera.fov);
+    uniforms.cameraNear.value = camera.near;
+    
+    _frustum.setFromProjectionMatrix(
+      _projection.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse)
+    );
+    camera.getWorldPosition(_position);
+    const sortedLayers = layers
+      .reduce((layers, entities, layer) => {
+        if (defines.MAX_ENTITIES < entities.length) {
+          defines.MAX_ENTITIES = entities.length;
+          uniforms.entities.value = entities.map(Raymarcher.cloneEntity);
+          raymarcher.material.needsUpdate = true;
+        }
+        const bounds = Raymarcher.getLayerBounds(layer);
+        entities.forEach((entity) => {
+          const {
+            geometry: { boundingSphere },
+            matrixWorld,
+          } = Raymarcher.getEntityCollider(entity);
+          _sphere.copy(boundingSphere).applyMatrix4(matrixWorld);
+          if (bounds.isEmpty()) {
+            bounds.copy(_sphere);
+          } else {
+            bounds.union(_sphere);
+          }
+        });
+        if (_frustum.intersectsSphere(bounds)) {
+          layers.push({
+            bounds,
+            distance: bounds.center.distanceTo(_position),
+            entities,
+          });
+        }
+        return layers;
+      }, [])
+      .sort(({ distance: a }, { distance: b }) => defines.CONETRACING ? (b - a) : (a - b));
 
     const lights = [];
     scene.traverseVisible((light) => {
@@ -194,14 +240,6 @@ class Raymarcher extends Mesh {
       target.setSize(_size.x, _size.y);
       uniforms.resolution.value.copy(_size);
     }
-  
-    camera.getWorldDirection(uniforms.cameraDirection.value);
-    uniforms.cameraFar.value = camera.far;
-    uniforms.cameraFov.value = ThreeMath.degToRad(camera.fov);
-    uniforms.cameraNear.value = camera.near;
-    _frustum.setFromProjectionMatrix(
-      _projection.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse)
-    );
 
     const currentAutoClear = renderer.autoClear;
     const currentRenderTarget = renderer.getRenderTarget();
@@ -212,33 +250,22 @@ class Raymarcher extends Mesh {
     renderer.shadowMap.autoUpdate = false;
     renderer.setRenderTarget(target);
     renderer.state.buffers.depth.setMask(true);
-    
+
     renderer.clear();
-    layers.forEach((entities) => {
-      uniforms.bounds.value.makeEmpty();
+    sortedLayers.forEach(({ bounds, entities }) => {
+      uniforms.bounds.value.center.copy(bounds.center);
+      uniforms.bounds.value.radius = bounds.radius;
       uniforms.numEntities.value = entities.length;
-      entities.forEach((entity, i) => {
+      entities.forEach(({ color, operation, position, rotation, scale, shape }, i) => {
         const uniform = uniforms.entities.value[i];
-        uniform.color.copy(entity.color);
-        uniform.operation = entity.operation;
-        uniform.position.copy(entity.position);
-        uniform.rotation.copy(entity.rotation);
-        uniform.scale.copy(entity.scale);
-        uniform.shape = entity.shape;
-        const {
-          geometry: { boundingSphere },
-          matrixWorld,
-        } = Raymarcher.getEntityCollider(entity);
-        _sphere.copy(boundingSphere).applyMatrix4(matrixWorld);
-        if (uniforms.bounds.value.isEmpty()) {
-          uniforms.bounds.value.copy(_sphere);
-        } else {
-          uniforms.bounds.value.union(_sphere);
-        }
+        uniform.color.copy(color);
+        uniform.operation = operation;
+        uniform.position.copy(position);
+        uniform.rotation.copy(rotation);
+        uniform.scale.copy(scale);
+        uniform.shape = shape;
       });
-      if (_frustum.intersectsSphere(uniforms.bounds.value)) {
-        renderer.render(raymarcher, camera);
-      }
+      renderer.render(raymarcher, camera);
     });
 
     renderer.autoClear = currentAutoClear;
@@ -285,6 +312,13 @@ class Raymarcher extends Mesh {
     }
     collider.updateMatrixWorld();
     return collider;
+  }
+
+  static getLayerBounds(layer) {
+    if (!_bounds[layer]) {
+      _bounds[layer] = new Sphere();
+    }
+    return _bounds[layer].makeEmpty();
   }
 }
 

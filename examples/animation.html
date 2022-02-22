@@ -75,8 +75,13 @@
 
       const { operations, shapes } = Raymarcher;
       const raymarcher = new Raymarcher({
-        layers: Array.from({ length: 10 }, (v, l) => Array.from({ length: 7 + Math.floor(Math.random() * 4)}, (v, e) => {
-          const operation = e >= 7 ? operations.substraction : operations.union;
+        conetracing: true,
+        blending: 1,
+        resolution: 0.5,
+        envMap: environments.RoomEnvironment,
+        envMapIntensity: 0.6,
+        layers: Array.from({ length: 8 }, (v, l) => Array.from({ length: 6 + Math.floor(Math.random() * 3)}, (v, e) => {
+          const operation = e >= 6 ? operations.substraction : operations.union;
           const shape = [shapes.sphere, shapes.capsule, shapes.box][Math.floor(Math.random() * (operation === operations.substraction ? 2 : 3))];
           return {
             color: new Color(Math.random() * 0xFFFFFF),
@@ -87,21 +92,18 @@
               .add({ x: 0, y: 8, z: 0 }),
             rotation: new Quaternion(0, 0, 0, 1),
             scale: new Vector3(
-              (shape === shapes.capsule ? 0.25 : 1) + Math.random() * 0.25,
-              (shape === shapes.capsule ? 1.25 : 1) + Math.random() * 0.25,
-              1 - Math.random() * 0.25
+              (shape === shapes.capsule ? 0.25 : 1.25) + Math.random() * 0.25,
+              (shape === shapes.capsule ? 1.25 : 1.25) + Math.random() * 0.25,
+              1.25 - Math.random() * 0.25
             ),
             shape,
           };
         })),
-        blending: 1,
-        resolution: 0.5,
-        envMap: environments.RoomEnvironment,
-        envMapIntensity: 0.6,
       });
       scene.add(raymarcher);
       
       const gui = new GUI({ title: 'three-raymarcher' });
+      gui.add(raymarcher.userData, 'conetracing');
       gui.add(raymarcher.userData, 'blending', 0, 2, 0.01);
       gui.add(raymarcher.userData, 'resolution', 0.01, 1, 0.01);
       {
@@ -117,24 +119,24 @@
 
       const animations = raymarcher.userData.layers.map((layer, l) => layer.map(({ position, scale }) => ({
         axis: (new Vector3(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5)).normalize(),
-        offset: new Vector3(-24 + Math.floor(l % 5) * 12, l >= 5 ? 0 : -14, (Math.random() - 0.5) * 24),
+        offset: new Vector3(-18 + Math.floor(l % 4) * 12, l >= 4 ? 2 : -14, (Math.random() - 0.5) * 24),
         position: position.clone(),
         scale: scale.clone(),
         speed: 0.5 + Math.random() * 2,
       })));
       const up = new Vector3(0, 1, 0);
-      const transform = new Matrix4();
+      const rotate = new Matrix4();
       renderer.setAnimationLoop((time) => {
         time /= 1000;
 
-        transform.makeRotationAxis(up, time * 0.75);
+        rotate.makeRotationAxis(up, time * 0.75);
         raymarcher.userData.layers.forEach((layer, layerId) => layer.forEach((entity, entityId) => {
           const animation = animations[layerId][entityId];
           const t = (layerId * 0.5 + 10) * entityId + time * animation.speed;
           entity.position
             .copy(animation.position)
             .multiplyScalar(0.7 + Math.sin(t * 0.5) * 0.3)
-            .applyMatrix4(transform)
+            .applyMatrix4(rotate)
             .add(animation.offset);
           entity.rotation
             .setFromAxisAngle(animation.axis, t * 0.25);
