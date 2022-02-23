@@ -8,10 +8,24 @@
         background: linear-gradient(to top, #0a0a0a, #181a1a, #2d2d2f);
         margin: 0;
       }
+      #help {
+        pointer-events: none;
+        position: fixed;
+        width: 100%;
+        padding: 1rem 0;
+        left: 0;
+        bottom: 0;
+        color: rgba(255, 255, 255, 0.3);
+        font-family: monospace;
+        text-align: center;
+      }
     </style>
   </head>
   <body>
     <div id="renderer"></div>
+    <div id="help">
+      Click to start playing. You can also drag & drop an audio file into the window.
+    </div>
     <script async src="https://cdn.jsdelivr.net/npm/es-module-shims@1.4.6/dist/es-module-shims.js"></script>
     <script type="importmap">
       {
@@ -45,10 +59,8 @@
       analyser.bins = new Float32Array(analyser.octaves.length - 1);
       analyser.buffer = new Uint8Array(analyser.frequencyBinCount);
       analyser.last = new Float32Array(analyser.octaves.length - 1);
-      analyser.sampleRate = 1 / 60;
       analyser.smoothing = 0.8;
       analyser.threshold = 0.2;
-      analyser.timer = 0;
 
       const player = new Audio();
       player.crossOrigin = 'anonymous';
@@ -85,32 +97,27 @@
         }
       });
 
-      window.getOctaves = (delta) => {
+      window.getOctaves = () => {
         const {
           bins,
           buffer,
           last,
           octaves,
-          sampleRate,
           smoothing,
           threshold,
         } = analyser;
-        analyser.timer += delta;
-        if (analyser.timer >= sampleRate) {
-          analyser.timer -= sampleRate;
-          analyser.getByteFrequencyData(buffer);
-          for (let i = 0, l = octaves.length - 1; i < l; i += 1) {
-            const from = octaves[i];
-            const to = octaves[i + 1];
-            const count = to - from;
-            let sum = 0;
-            for (let j = from; j < to; j += 1) {
-              sum += (buffer[j] / 0xFF) ** 2;
-            }
-            const sample = Math.max(Math.sqrt(sum / count), last[i] * smoothing);
-            bins[i] = Math.max(sample - threshold, 0) / (1 - threshold);
-            last[i] = sample;
+        analyser.getByteFrequencyData(buffer);
+        for (let i = 0, l = octaves.length - 1; i < l; i += 1) {
+          const from = octaves[i];
+          const to = octaves[i + 1];
+          const count = to - from;
+          let sum = 0;
+          for (let j = from; j < to; j += 1) {
+            sum += (buffer[j] / 0xFF) ** 2;
           }
+          const sample = Math.max(Math.sqrt(sum / count), last[i] * smoothing);
+          bins[i] = Math.max(sample - threshold, 0) / (1 - threshold);
+          last[i] = sample;
         }
         return bins;
       };
@@ -183,8 +190,7 @@
       })));
       renderer.setAnimationLoop(() => {
         const delta = Math.min(clock.getDelta(), 1);
-        const time = clock.oldTime / 1000;
-        const octaves = getOctaves(delta);
+        const octaves = getOctaves();
         raymarcher.userData.layers.forEach((layer, layerId) => layer.forEach((entity, entityId) => {
           const animation = animations[layerId][entityId];
           entity.color.offsetHSL(delta * 0.1, 0, 0);
@@ -192,6 +198,7 @@
             .copy(animation.position)
             .multiplyScalar(0.5 + octaves[animation.octave] * 4);
         }));
+
         controls.update();
         stats.update();
         renderer.render(scene, camera);
