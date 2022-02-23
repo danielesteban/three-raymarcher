@@ -1,0 +1,201 @@
+<!doctype html>
+<html>
+  <head>
+    <title>three-raymarcher</title>
+    <meta charset="utf-8">
+    <style>
+      body {
+        background: linear-gradient(to top, #0a0a0a, #181a1a, #2d2d2f);
+        margin: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="renderer"></div>
+    <script async src="https://cdn.jsdelivr.net/npm/es-module-shims@1.4.6/dist/es-module-shims.js"></script>
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://cdn.jsdelivr.net/npm/three@0.137.5/build/three.module.js",
+          "three-environment": "https://cdn.jsdelivr.net/npm/three@0.137.5/examples/jsm/environments/RoomEnvironment.js",
+          "three-orbit": "https://cdn.jsdelivr.net/npm/three@0.137.5/examples/jsm/controls/OrbitControls.js",
+          "three-stats": "https://cdn.jsdelivr.net/npm/three@0.137.5/examples/jsm/libs/stats.module.js",
+          "three-raymarcher": "../module.js"
+        }
+      }
+    </script>
+    <script type="module">
+      const context = new AudioContext();
+
+      const analyser = context.createAnalyser();
+      analyser.fftSize = 8192;
+      {
+        const tuning = 440;
+        const equalTemperament = (note) => (
+          (2 ** ((note - 69) / 12)) * tuning
+        );
+        analyser.octaves = [...Array(9)].map((v, i) => (
+          Math.round(
+            (
+              equalTemperament(12 + i * 12) * analyser.fftSize
+            ) / context.sampleRate
+          )
+        ));
+      }
+      analyser.bins = new Float32Array(analyser.octaves.length - 1);
+      analyser.buffer = new Uint8Array(analyser.frequencyBinCount);
+      analyser.last = new Float32Array(analyser.octaves.length - 1);
+      analyser.sampleRate = 1 / 60;
+      analyser.smoothing = 0.8;
+      analyser.threshold = 0.2;
+      analyser.timer = 0;
+
+      const player = new Audio();
+      player.crossOrigin = 'anonymous';
+      player.loop = true;
+      player.src = 'https://cdn.glitch.global/7f964a76-a4ad-453b-810f-dbe64358e478/test.ogg?v=1645643245428';
+
+      const source = context.createMediaElementSource(player);
+      source.connect(analyser);
+      const gain = context.createGain();
+      gain.gain.setValueAtTime(0.5, context.currentTime);
+      analyser.connect(gain);
+      gain.connect(context.destination);
+
+      const onInteraction = () => {
+        if (context.state !== 'running') {
+          context.resume();
+        }
+        if (player.paused) {
+          player.play();
+        }
+      };
+      window.addEventListener('mousedown', onInteraction);
+      window.addEventListener('keydown', onInteraction);
+
+      window.addEventListener('dragover', (e) => e.preventDefault());
+      window.addEventListener('drop', (e) => {
+        e.preventDefault();
+        if (
+          e.dataTransfer
+          && e.dataTransfer.files.length === 1
+          && e.dataTransfer.files[0].type.indexOf('audio/') === 0
+        ) {
+          player.src = URL.createObjectURL(e.dataTransfer.files[0]);
+        }
+      });
+
+      window.getOctaves = (delta) => {
+        const {
+          bins,
+          buffer,
+          last,
+          octaves,
+          sampleRate,
+          smoothing,
+          threshold,
+        } = analyser;
+        analyser.timer += delta;
+        if (analyser.timer >= sampleRate) {
+          analyser.timer -= sampleRate;
+          analyser.getByteFrequencyData(buffer);
+          for (let i = 0, l = octaves.length - 1; i < l; i += 1) {
+            const from = octaves[i];
+            const to = octaves[i + 1];
+            const count = to - from;
+            let sum = 0;
+            for (let j = from; j < to; j += 1) {
+              sum += (buffer[j] / 0xFF) ** 2;
+            }
+            const sample = Math.max(Math.sqrt(sum / count), last[i] * smoothing);
+            bins[i] = Math.max(sample - threshold, 0) / (1 - threshold);
+            last[i] = sample;
+          }
+        }
+        return bins;
+      };
+    </script>
+    <script type="module">
+      import {
+        Clock,
+        Color,
+        PerspectiveCamera,
+        PMREMGenerator,
+        Quaternion,
+        Raycaster,
+        Scene,
+        sRGBEncoding,
+        Vector2,
+        Vector3,
+        WebGLRenderer,
+      } from 'three';
+      import { RoomEnvironment } from 'three-environment';
+      import { OrbitControls } from 'three-orbit';
+      import Stats from 'three-stats';
+      import Raymarcher from 'three-raymarcher';
+
+      const stats = new Stats();
+      document.body.appendChild(stats.dom);
+      const renderer = new WebGLRenderer({ alpha: true });
+      renderer.encoding = sRGBEncoding;
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      const camera = new PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.01, 1000);
+      const controls = new OrbitControls(camera, renderer.domElement);
+      const clock = new Clock();
+      document.getElementById('renderer').appendChild(renderer.domElement);
+      window.addEventListener('resize', () => {
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+      }, false);
+
+      const scene = new Scene();
+      camera.position.set(0, 0, 8);
+      controls.enableDamping = true;
+      controls.autoRotate = true;
+
+      const { operations, shapes } = Raymarcher;
+      const raymarcher = new Raymarcher({
+        conetracing: true,
+        resolution: 0.5,
+        envMap: (new PMREMGenerator(renderer)).fromScene(new RoomEnvironment()).texture,
+        envMapIntensity: 0.6,
+        layers: [Array.from({ length: 16 }, () => ({
+          color: new Color(Math.random() * 0xFFFFFF),
+          operation: operations.union,
+          position: (new Vector3(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5))
+            .normalize(),
+          rotation: (new Quaternion())
+            .setFromAxisAngle(new Vector3(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5), Math.random()),
+          scale: new Vector3(
+            1 + Math.random() * 0.5,
+            1 + Math.random() * 0.5,
+            1 + Math.random() * 0.5
+          ),
+          shape: shapes.sphere,
+        }))],
+      });
+      scene.add(raymarcher);
+
+      const animations = raymarcher.userData.layers.map((layer) => layer.map(({ position }) => ({
+        position: position.clone(),
+        octave: Math.floor(Math.random() * 8),
+      })));
+      renderer.setAnimationLoop(() => {
+        const delta = Math.min(clock.getDelta(), 1);
+        const time = clock.oldTime / 1000;
+        const octaves = getOctaves(delta);
+        raymarcher.userData.layers.forEach((layer, layerId) => layer.forEach((entity, entityId) => {
+          const animation = animations[layerId][entityId];
+          entity.color.offsetHSL(delta * 0.1, 0, 0);
+          entity.position
+            .copy(animation.position)
+            .multiplyScalar(0.5 + octaves[animation.octave] * 4);
+        }));
+        controls.update();
+        stats.update();
+        renderer.render(scene, camera);
+      });
+    </script>
+  </body>
+</html>
