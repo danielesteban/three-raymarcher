@@ -46,7 +46,6 @@ uniform vec2 resolution;
 #define texture2D texture
 #include <cube_uv_reflection_fragment>
 #include <encodings_pars_fragment>
-#include <packing>
 
 vec3 applyQuaternion(const in vec3 p, const in vec4 q) {
   return p + 2.0 * cross(-q.xyz, cross(-q.xyz, p) + q.w * p);
@@ -203,6 +202,7 @@ void main() {
   float distance = cameraNear;
   march(color, distance);
   fragColor = clamp(LinearTosRGB(color), 0.0, 1.0);
-  float depth = 1.0 - perspectiveDepthToViewZ(distance * dot(cameraDirection, ray), cameraNear, cameraFar);
-  gl_FragDepth = gl_DepthRange.diff * depth + gl_DepthRange.near;
+  float z = (distance >= MAX_DISTANCE) ? cameraFar : (distance * dot(cameraDirection, ray));
+  float ndcDepth = -((cameraFar + cameraNear) / (cameraNear - cameraFar)) + ((2.0 * cameraFar * cameraNear) / (cameraNear - cameraFar)) / z;
+  gl_FragDepth = ((gl_DepthRange.diff * ndcDepth) + gl_DepthRange.near + gl_DepthRange.far) / 2.0;
 }
