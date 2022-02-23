@@ -149,7 +149,7 @@ vec3 getLight(const in vec3 position, const in vec3 normal) {
 }
 
 #ifdef CONETRACING
-void march(out vec4 color, out float distance) {
+void march(inout vec4 color, inout float distance) {
   float closest = MAX_DISTANCE;
   float coverage = 1.0;
   float coneRadius = (2.0 * tan(cameraFov / 2.0)) / resolution.y;
@@ -180,7 +180,7 @@ void march(out vec4 color, out float distance) {
   color.a = 1.0 - (max(coverage - MIN_COVERAGE, 0.0) / (1.0 - MIN_COVERAGE));
 }
 #else
-void march(out vec4 color, out float distance) {
+void march(inout vec4 color, inout float distance) {
   for (int i = 0; i < MAX_ITERATIONS && distance < MAX_DISTANCE; i++) {
     vec3 position = cameraPosition + ray * distance;
     float distanceToBounds = sdSphere(position - bounds.center, bounds.radius);
