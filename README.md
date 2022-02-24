@@ -94,6 +94,8 @@ three-raymarcher will automatically use any three.js [DirectionalLight](https://
 
 `userData.blending` controls the global smoothing of the union operations.
 
+`userData.conetracing` enables/disables conetracing (sort of antialias). Disabled by default since it could significantly decrease the performance.
+
 You can increase the performance by setting `userData.resolution` to something less than 1. In most of the examples is set to 0.5 (2x downsampling), which seems to give the best quality/performance trade-off.
 
 ### Raycasting
