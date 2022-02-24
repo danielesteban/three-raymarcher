@@ -84,7 +84,7 @@
         envMap: (new PMREMGenerator(renderer)).fromScene(new RoomEnvironment()).texture,
         envMapIntensity: 0.6,
         layers: [Array.from({ length: 16 }, () => ({
-          color: new Color(Math.random() * 0xFFFFFF),
+          color: (new Color()).setHSL(Math.random(), 0.8, 0.6),
           operation: operations.union,
           position: (new Vector3(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5))
             .normalize(),
@@ -100,19 +100,29 @@
       });
       scene.add(raymarcher);
 
-      const animations = raymarcher.userData.layers[0].map(({ position }, i) => ({
-        position: position.clone(),
+      const aux = new Vector3();
+      const animations = raymarcher.userData.layers[0].map(({ position, scale }, i) => ({
         octave: i % 8,
+        position: position.clone(),
+        scale: scale.clone(),
       }));
       renderer.setAnimationLoop(() => {
         const delta = Math.min(clock.getDelta(), 1);
         const octaves = getOctaves();
         raymarcher.userData.layers[0].forEach((entity, i) => {
           const animation = animations[i];
+          const intensity = octaves[animation.octave];
           entity.color.offsetHSL(delta * 0.1, 0, 0);
           entity.position
             .copy(animation.position)
-            .multiplyScalar(0.5 + octaves[animation.octave] * 4);
+            .multiplyScalar(0.5 + intensity * 3);
+          entity.scale.add(
+            aux
+              .copy(animation.scale)
+              .multiplyScalar(0.5 + intensity * 1.5)
+              .sub(entity.scale)
+              .multiplyScalar(delta)
+          );
         });
 
         controls.update();
