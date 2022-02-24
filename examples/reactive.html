@@ -124,16 +124,14 @@
       const context = new AudioContext();
 
       const analyser = context.createAnalyser();
-      const equalTemperament = (note) => ((2 ** ((note - 69) / 12)) * 440);
       analyser.fftSize = 8192;
-      analyser.octaves = Array.from({ length: 9 }, (v, i) => (
-        Math.round(
-          (equalTemperament((i + 1) * 12) * analyser.fftSize) / context.sampleRate
-        )
+      const equalTemperament = (note) => ((2 ** ((note - 69) / 12)) * 440);
+      analyser.octaves = Array.from({ length: 9 }, (v, i) => Math.round(
+        (equalTemperament((i + 1) * 12) * analyser.fftSize) / context.sampleRate
       ));
-      analyser.bins = new Float32Array(analyser.octaves.length - 1);
       analyser.buffer = new Uint8Array(analyser.frequencyBinCount);
-      analyser.last = new Float32Array(analyser.octaves.length - 1);
+      analyser.current = new Float32Array(analyser.octaves.length - 1);
+      analyser.previous = new Float32Array(analyser.octaves.length - 1);
       analyser.smoothing = 0.8;
       analyser.threshold = 0.2;
 
@@ -151,27 +149,27 @@
 
       window.getOctaves = () => {
         const {
-          bins,
           buffer,
-          last,
+          current,
           octaves,
+          previous,
           smoothing,
           threshold,
         } = analyser;
         analyser.getByteFrequencyData(buffer);
-        for (let i = 0, l = octaves.length - 1; i < l; i += 1) {
+        for (let i = 0, l = octaves.length - 1; i < l; i++) {
           const from = octaves[i];
           const to = octaves[i + 1];
           const count = to - from;
           let sum = 0;
-          for (let j = from; j < to; j += 1) {
+          for (let j = from; j < to; j++) {
             sum += (buffer[j] / 0xFF) ** 2;
           }
-          const sample = Math.max(Math.sqrt(sum / count), last[i] * smoothing);
-          bins[i] = Math.max(sample - threshold, 0) / (1 - threshold);
-          last[i] = sample;
+          const sample = Math.max(Math.sqrt(sum / count), previous[i] * smoothing);
+          current[i] = Math.max(sample - threshold, 0) / (1 - threshold);
+          previous[i] = sample;
         }
-        return bins;
+        return current;
       };
 
       const onInteraction = () => {
