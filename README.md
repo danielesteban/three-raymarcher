@@ -2,7 +2,7 @@
 [![npm-version](https://img.shields.io/npm/v/three-raymarcher.svg)](https://www.npmjs.com/package/three-raymarcher)
 ==
 
-### Examples
+## Examples
 
  * Animation: [glitch.com/~three-raymarcher](https://glitch.com/edit/#!/three-raymarcher)
  * Interactive: [glitch.com/~three-raymarcher-interactive](https://glitch.com/edit/#!/three-raymarcher-interactive)
@@ -10,13 +10,13 @@
  * Transform: [glitch.com/~three-raymarcher-transform](https://glitch.com/edit/#!/three-raymarcher-transform)
  * react-three-fiber: [codesandbox.io/s/three-raymarcher-3xdor](https://codesandbox.io/s/three-raymarcher-3xdor)
 
-### Installation
+## Installation
 
 ```bash
 npm i three-raymarcher
 ```
 
-### Basic usage
+## Basic usage
 
 ```js
 import {
@@ -72,25 +72,32 @@ renderer.setAnimationLoop(() => (
 ));
 ```
 
-### Lighting
+## Lighting
 
 three-raymarcher uses a DNPBR (definitely not phisically based rendering) lighting model:
 
-##### Indirect diffuse
+#### Indirect diffuse
 
-Assign a CubeUVMap texture to `userData.envMap` and control it's intensity with `userData.envMapIntensity`.
+Assign a CubeUVMap texture to `userData.envMap` and control it's intensity with `userData.envMapIntensity`:
+
+```js
+(new RGBELoader()).load('environment.hdr', (texture) => {
+  raymarcher.userData.envMap = (new PMREMGenerator(renderer)).fromEquirectangular(texture).texture;
+  raymarcher.userData.envMapIntensity = 0.6;
+});
+```
 
 If you don't set an envMap, the shader will use `vec3(envMapIntensity)` as the ambient light.
 
-##### Indirect specular
+#### Indirect specular
 
 Not yet implemented. Coming soon, maybe.
 
-##### Direct diffuse & specular
+#### Direct diffuse & specular
 
 three-raymarcher will automatically use any three.js [DirectionalLight](https://threejs.org/docs/api/en/lights/DirectionalLight) in the scene.
 
-### Raymarching
+## Raymarching
 
 `userData.blending` controls the global smoothing of the union operations.
 
@@ -98,7 +105,7 @@ three-raymarcher will automatically use any three.js [DirectionalLight](https://
 
 You can increase the performance by setting `userData.resolution` to something less than 1. In most of the examples is set to 0.5 (2x downsampling), which seems to give the best quality/performance trade-off.
 
-### Raycasting
+## Raycasting
 
 three-raymarcher supports the three.js [Raycaster](https://threejs.org/docs/api/en/core/Raycaster) out of the box:
 
@@ -114,7 +121,7 @@ if (hit) {
 }
 ```
 
-### Want to contribute?
+## Want to contribute?
 
 Here's how to setup the module dev environment:
 
