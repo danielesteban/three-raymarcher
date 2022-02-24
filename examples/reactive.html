@@ -100,9 +100,9 @@
       });
       scene.add(raymarcher);
 
-      const animations = raymarcher.userData.layers[0].map(({ position }) => ({
+      const animations = raymarcher.userData.layers[0].map(({ position }, i) => ({
         position: position.clone(),
-        octave: Math.floor(Math.random() * 8),
+        octave: i % 8,
       }));
       renderer.setAnimationLoop(() => {
         const delta = Math.min(clock.getDelta(), 1);
@@ -124,20 +124,13 @@
       const context = new AudioContext();
 
       const analyser = context.createAnalyser();
+      const equalTemperament = (note) => ((2 ** ((note - 69) / 12)) * 440);
       analyser.fftSize = 8192;
-      {
-        const tuning = 440;
-        const equalTemperament = (note) => (
-          (2 ** ((note - 69) / 12)) * tuning
-        );
-        analyser.octaves = [...Array(9)].map((v, i) => (
-          Math.round(
-            (
-              equalTemperament(12 + i * 12) * analyser.fftSize
-            ) / context.sampleRate
-          )
-        ));
-      }
+      analyser.octaves = Array.from({ length: 9 }, (v, i) => (
+        Math.round(
+          (equalTemperament((i + 1) * 12) * analyser.fftSize) / context.sampleRate
+        )
+      ));
       analyser.bins = new Float32Array(analyser.octaves.length - 1);
       analyser.buffer = new Uint8Array(analyser.frequencyBinCount);
       analyser.last = new Float32Array(analyser.octaves.length - 1);
