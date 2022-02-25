@@ -69,13 +69,11 @@ class Raymarcher extends Mesh {
       fragmentShader: raymarcherFragment,
       defines: {
         CONETRACING: !!conetracing,
-        ENVMAP_TYPE_CUBE_UV: !!envMap,
         MAX_ENTITIES: 0,
         MAX_DISTANCE: '1000.0',
         MAX_ITERATIONS: 200,
         MIN_COVERAGE: '0.02',
         MIN_DISTANCE: '0.05',
-        NUM_LIGHTS: 0,
       },
       uniforms: {
         blending: { value: blending },
@@ -85,7 +83,7 @@ class Raymarcher extends Mesh {
         cameraFov: { value: 0 },
         cameraNear: { value: 0 },
         resolution: { value: new Vector2() },
-        envMap: { value: envMap },
+        envMap: { value: null },
         envMapIntensity: { value: envMapIntensity },
         lights: {
           value: [],
@@ -135,6 +133,23 @@ class Raymarcher extends Mesh {
           defines.ENVMAP_TYPE_CUBE_UV = !!value;
           material.needsUpdate = true;
         }
+        if (value) {
+          const maxMip = Math.log2(value.image.height / 32 + 1) + 3;
+          const texelWidth = 1.0 / (3 * Math.max(Math.pow(2, maxMip), 7 * 16));
+          const texelHeight = 1.0 / value.image.height;
+          if (defines.CUBEUV_MAX_MIP !== `${maxMip}.0`) {
+            defines.CUBEUV_MAX_MIP = `${maxMip}.0`;
+            material.needsUpdate = true;
+          }
+          if (defines.CUBEUV_TEXEL_WIDTH !== texelWidth) {
+            defines.CUBEUV_TEXEL_WIDTH = texelWidth;
+            material.needsUpdate = true;
+          }
+          if (defines.CUBEUV_TEXEL_HEIGHT !== texelHeight) {
+            defines.CUBEUV_TEXEL_HEIGHT = texelHeight;
+            material.needsUpdate = true;
+          }
+        }
       },
       get envMapIntensity() {
         return uniforms.envMapIntensity.value;
@@ -149,6 +164,9 @@ class Raymarcher extends Mesh {
     };
     this.matrixAutoUpdate = this.userData.raymarcher.matrixAutoUpdate = false;
     this.frustumCulled = this.userData.raymarcher.frustumCulled = false;
+    if (envMap) {
+      this.userData.envMap = envMap;
+    }
   }
 
   copy(source) {

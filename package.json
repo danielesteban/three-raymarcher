@@ -1,7 +1,7 @@
 {
   "name": "three-raymarcher",
   "author": "Daniel Esteban Nombela",
-  "version": "0.2.10",
+  "version": "0.2.11",
   "license": "MIT",
   "module": "module.js",
   "files": [
@@ -16,7 +16,7 @@
     "sirv-cli": "^2.0.2"
   },
   "peerDependencies": {
-    "three": "^0.137.5"
+    "three": "^0.138.0"
   },
   "repository": {
     "type": "git",
