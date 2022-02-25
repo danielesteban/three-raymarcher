@@ -1,0 +1,184 @@
+<!doctype html>
+<html>
+  <head>
+    <title>three-raymarcher</title>
+    <meta charset="utf-8">
+    <style>
+      body {
+        background: linear-gradient(to top, #0a0a0a, #181a1a, #2d2d2f);
+        cursor: grab;
+        margin: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="renderer"></div>
+    <script async src="https://cdn.jsdelivr.net/npm/three@0.138.0/examples/js/libs/ammo.wasm.js"></script>
+    <script async src="https://cdn.jsdelivr.net/npm/es-module-shims@1.4.6/dist/es-module-shims.js"></script>
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://cdn.jsdelivr.net/npm/three@0.138.0/build/three.module.js",
+          "three-environment": "https://cdn.jsdelivr.net/npm/three@0.138.0/examples/jsm/environments/RoomEnvironment.js",
+          "three-orbit": "https://cdn.jsdelivr.net/npm/three@0.138.0/examples/jsm/controls/OrbitControls.js",
+          "three-stats": "https://cdn.jsdelivr.net/npm/three@0.138.0/examples/jsm/libs/stats.module.js",
+          "three-raymarcher": "../module.js"
+        }
+      }
+    </script>
+    <script type="module">
+      import {
+        Clock,
+        Color,
+        DirectionalLight,
+        Mesh,
+        PerspectiveCamera,
+        PlaneGeometry,
+        PMREMGenerator,
+        Quaternion,
+        Raycaster,
+        Scene,
+        sRGBEncoding,
+        Vector2,
+        Vector3,
+        WebGLRenderer,
+      } from 'three';
+      import { RoomEnvironment } from 'three-environment';
+      import { OrbitControls } from 'three-orbit';
+      import Stats from 'three-stats';
+      import Raymarcher from 'three-raymarcher';
+
+      const stats = new Stats();
+      document.body.appendChild(stats.dom);
+      const renderer = new WebGLRenderer({ alpha: true });
+      renderer.encoding = sRGBEncoding;
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      const camera = new PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.01, 1000);
+      const controls = new OrbitControls(camera, renderer.domElement);
+      const clock = new Clock();
+      document.getElementById('renderer').appendChild(renderer.domElement);
+      window.addEventListener('resize', () => {
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+      }, false);
+
+      const scene = new Scene();
+      camera.position.set(0, 0, 12);
+      controls.enableDamping = true;
+
+      const plane = new Mesh(new PlaneGeometry(1000, 1000, 1, 1));
+      const pointer = new Vector2();
+      const raycaster = new Raycaster();
+      window.addEventListener('mousemove', ({ clientX, clientY }) => {
+        pointer.x = (clientX / window.innerWidth) * 2 - 1;
+        pointer.y = -(clientY / window.innerHeight) * 2 + 1;
+      }, false);
+
+      const { operations, shapes } = Raymarcher;
+      const raymarcher = new Raymarcher({
+        conetracing: true,
+        blending: 1,
+        resolution: 0.5,
+        envMap: (new PMREMGenerator(renderer)).fromScene(new RoomEnvironment()).texture,
+        envMapIntensity: 0.6,
+        layers: [Array.from({ length: 16 }, (v, i) => ({
+          color: (new Color()).setHSL(Math.random(), 0.8, 0.6),
+          operation: operations.union,
+          position: (new Vector3(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5))
+            .normalize()
+            .multiplyScalar(6),
+          rotation: new Quaternion(),
+          scale: (new Vector3()).setScalar(0.75 + Math.random() * 1.5),
+          shape: shapes.sphere,
+        }))],
+      });
+      scene.add(raymarcher);
+
+      Ammo().then((Ammo) => {
+        const CF_STATIC_OBJECT = 1;
+        const CF_KINEMATIC_OBJECT = 2;
+        const DISABLE_DEACTIVATION = 4;
+        const transform = new Ammo.btTransform();
+        const quaternion = new Ammo.btQuaternion();
+        const vector = new Ammo.btVector3();
+        const zero = new Ammo.btVector3();
+
+        const collisionConfiguration = new Ammo.btDefaultCollisionConfiguration();
+        const dispatcher = new Ammo.btCollisionDispatcher(collisionConfiguration);
+        const broadphase = new Ammo.btDbvtBroadphase();
+        const solver = new Ammo.btSequentialImpulseConstraintSolver();
+        const softBodySolver = new Ammo.btDefaultSoftBodySolver();
+        const world = new Ammo.btSoftRigidDynamicsWorld(dispatcher, broadphase, solver, collisionConfiguration, softBodySolver);
+        world.setGravity(new Ammo.btVector3(0, 2, 0));
+
+        {
+          const shape = new Ammo.btSphereShape(0.75);
+          shape.setMargin(0.05);
+          transform.setIdentity();
+          const motionState = new Ammo.btDefaultMotionState(transform);
+          const rbInfo = new Ammo.btRigidBodyConstructionInfo(0, motionState, shape, vector);
+          pointer.body = new Ammo.btRigidBody(rbInfo);
+          pointer.body.setActivationState(DISABLE_DEACTIVATION);
+          pointer.body.setCollisionFlags((pointer.body.getCollisionFlags() & ~CF_STATIC_OBJECT) | CF_KINEMATIC_OBJECT);
+          pointer.body.setDamping(1.0, 0.1);
+          world.addRigidBody(pointer.body);
+        }
+
+        const bodies = raymarcher.userData.layers[0].map(({ position, rotation, scale }) => {
+          const mass = 1;
+          const shape = new Ammo.btSphereShape(scale.x * 0.4);
+          shape.setMargin(0.05);
+          vector.setValue(0, 0, 0);
+          if (mass > 0) shape.calculateLocalInertia(mass, vector);
+          transform.setIdentity();
+          vector.setValue(position.x, position.y, position.z);
+          transform.setOrigin(vector);
+          quaternion.setValue(rotation.x, rotation.y, rotation.z, rotation.w);
+          transform.setRotation(quaternion);
+          const motionState = new Ammo.btDefaultMotionState(transform);
+          const rbInfo = new Ammo.btRigidBodyConstructionInfo(mass, motionState, shape, vector);
+          const body = new Ammo.btRigidBody(rbInfo);
+          body.setActivationState(DISABLE_DEACTIVATION);
+          body.setDamping(0.9, 0.1);
+          world.addRigidBody(body);
+          return body;
+        });
+      
+        renderer.setAnimationLoop(() => {
+          const delta = Math.min(clock.getDelta(), 1 / 30);
+  
+          raycaster.setFromCamera(pointer, camera);
+          plane.lookAt(camera.position);
+          const hit = raycaster.intersectObject(plane)[0];
+          if (hit) {
+            const motionState = pointer.body.getMotionState();
+            transform.setIdentity();
+            vector.setValue(hit.point.x, hit.point.y, hit.point.z);
+            transform.setOrigin(vector);
+            motionState.setWorldTransform(transform);
+          }
+  
+          world.stepSimulation(delta, 10);
+          raymarcher.userData.layers[0].forEach((entity, i) => {
+            entity.color.offsetHSL(delta * 0.05, 0, 0);
+            const body = bodies[i];
+            const motionState = body.getMotionState();
+            motionState.getWorldTransform(transform);
+            const position = transform.getOrigin();
+            const rotation = transform.getRotation();
+            entity.position.set(position.x(), position.y(), position.z());
+            entity.rotation.set(quaternion.x(), quaternion.y(), quaternion.z(), quaternion.w());
+            position.normalize();
+            position.op_mul(delta * -1000);
+            body.applyCentralForce(position);
+          });
+
+          controls.update();
+          stats.update();
+          renderer.render(scene, camera);
+        });
+      });
+    </script>
+  </body>
+</html>
