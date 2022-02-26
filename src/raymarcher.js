@@ -17,6 +17,7 @@ import {
   Vector3,
   WebGLRenderTarget,
 } from 'three';
+import lighting from './shaders/lighting.glsl';
 import raymarcherFragment from './shaders/raymarcher.frag';
 import raymarcherVertex from './shaders/raymarcher.vert';
 import screenFragment from './shaders/screen.frag';
@@ -66,7 +67,7 @@ class Raymarcher extends Mesh {
       transparent: !!conetracing,
       glslVersion: GLSL3,
       vertexShader: raymarcherVertex,
-      fragmentShader: raymarcherFragment,
+      fragmentShader: raymarcherFragment.replace('#include <lighting>', lighting),
       defines: {
         CONETRACING: !!conetracing,
         MAX_ENTITIES: 0,
@@ -97,9 +98,11 @@ class Raymarcher extends Mesh {
           value: [],
           properties: {
             color: {},
+            metalness: {},
             operation: {},
             position: {},
             rotation: {},
+            roughness: {},
             scale: {},
             shape: {},
           },
@@ -274,12 +277,14 @@ class Raymarcher extends Mesh {
       uniforms.bounds.value.center.copy(bounds.center);
       uniforms.bounds.value.radius = bounds.radius;
       uniforms.numEntities.value = entities.length;
-      entities.forEach(({ color, operation, position, rotation, scale, shape }, i) => {
+      entities.forEach(({ color, metalness, operation, position, rotation, roughness, scale, shape }, i) => {
         const uniform = uniforms.entities.value[i];
         uniform.color.copy(color);
+        uniform.metalness = metalness;
         uniform.operation = operation;
         uniform.position.copy(position);
         uniform.rotation.copy(rotation);
+        uniform.roughness = roughness;
         uniform.scale.copy(scale);
         uniform.shape = shape;
       });
@@ -309,12 +314,14 @@ class Raymarcher extends Mesh {
     }));
   }
 
-  static cloneEntity({ color, operation, position, rotation, scale, shape }) {
+  static cloneEntity({ color, metalness, operation, position, rotation, roughness, scale, shape }) {
     return {
       color: color.clone(),
+      metalness,
       operation,
       position: position.clone(),
       rotation: rotation.clone(),
+      roughness,
       scale: scale.clone(),
       shape,
     };

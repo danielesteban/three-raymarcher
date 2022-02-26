@@ -11,7 +11,7 @@ export default {
     {
       name: 'shaders',
       transform(code, id) {
-        if (/\.(frag|vert)$/g.test(id)) {
+        if (/\.(frag|glsl|vert)$/g.test(id)) {
           return {
             code: `export default ${JSON.stringify(code)};`,
             map: { mappings: '' }

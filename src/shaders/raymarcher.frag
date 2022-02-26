@@ -8,9 +8,11 @@ struct Bounds {
 
 struct Entity {
   vec3 color;
+  float metalness;
   int operation;
   vec3 position;
   vec4 rotation;
+  float roughness;
   vec3 scale;
   int shape;
 };
@@ -21,8 +23,10 @@ struct Light {
 };
 
 struct SDF {
-  vec3 color;
   float distance;
+  vec3 color;
+  float metalness;
+  float roughness;
 };
 
 out vec4 fragColor;
@@ -46,6 +50,7 @@ uniform vec2 resolution;
 #define texture2D texture
 #include <cube_uv_reflection_fragment>
 #include <encodings_pars_fragment>
+#include <lighting>
 
 vec3 applyQuaternion(const in vec3 p, const in vec4 q) {
   return p + 2.0 * cross(-q.xyz, cross(-q.xyz, p) + q.w * p);
@@ -72,31 +77,40 @@ float sdSphere(const in vec3 p, const in float r) {
 }
 
 SDF sdEntity(in vec3 p, const in Entity e) {
+  float distance;
   p = applyQuaternion(p - e.position, normalize(e.rotation));
   switch (e.shape) {
     default:
     case 0:
-      return SDF(e.color, sdBox(p, e.scale * 0.5 - vec3(0.1)) - 0.1);
+      distance = sdBox(p, e.scale * 0.5 - vec3(0.1)) - 0.1;
+      break;
     case 1:
-      return SDF(e.color, sdCapsule(p, e.scale * 0.5));
+      distance = sdCapsule(p, e.scale * 0.5);
+      break;
     case 2:
-      return SDF(e.color, sdEllipsoid(p, e.scale * 0.5));
+      distance = sdEllipsoid(p, e.scale * 0.5);
+      break;
   }
+  return SDF(distance, e.color, e.metalness, e.roughness);
 }
 
 SDF opSmoothUnion(const in SDF a, const in SDF b, const in float k) {
   float h = clamp(0.5 + 0.5 * (b.distance - a.distance) / k, 0.0, 1.0);
   return SDF(
+    mix(b.distance, a.distance, h) - k*h*(1.0-h),
     mix(b.color, a.color, h),
-    mix(b.distance, a.distance, h) - k*h*(1.0-h)
+    mix(b.metalness, a.metalness, h),
+    mix(b.roughness, a.roughness, h)
   );
 }
 
 SDF opSmoothSubtraction(const in SDF a, const in SDF b, const in float k) {
   float h = clamp(0.5 - 0.5 * (a.distance + b.distance) / k, 0.0, 1.0);
   return SDF(
+    mix(a.distance, -b.distance, h) + k*h*(1.0-h),
     mix(a.color, b.color, h),
-    mix(a.distance, -b.distance, h) + k*h*(1.0-h)
+    mix(a.metalness, b.metalness, h),
+    mix(a.roughness, b.roughness, h)
   );
 }
 
@@ -127,26 +141,6 @@ vec3 getNormal(const in vec3 p, const in float d) {
   );
 }
 
-vec3 getLight(const in vec3 position, const in vec3 normal) {
-  #ifdef ENVMAP_TYPE_CUBE_UV
-    vec3 light = textureCubeUV(envMap, normal, 1.0).rgb * envMapIntensity;
-  #else
-    vec3 light = vec3(envMapIntensity);
-  #endif
-  #if NUM_LIGHTS > 0
-    vec3 viewDirection = normalize(cameraPosition - position);
-    for (int i = 0; i < NUM_LIGHTS; i++) {
-      vec3 direction = normalize(-lights[i].direction);
-      vec3 halfway = normalize(direction + viewDirection);
-      light += lights[i].color * (
-        max(dot(direction, normal), 0.0)
-        + pow(max(dot(normal, halfway), 0.0), 32.0)
-      );
-    }
-  #endif
-  return light;
-}
-
 #ifdef CONETRACING
 void march(inout vec4 color, inout float distance) {
   float closest = MAX_DISTANCE;
@@ -165,7 +159,7 @@ void march(inout vec4 color, inout float distance) {
           closest = distance;
         }
         float alpha = smoothstep(cone, -cone, step.distance);
-        vec3 pixel = step.color * getLight(position, getNormal(position, step.distance));
+        vec3 pixel = getLight(position, getNormal(position, step.distance), step.color, step.metalness, step.roughness);
         color.rgb += coverage * (alpha * pixel);
         coverage *= (1.0 - alpha);
         if (coverage <= MIN_COVERAGE) {
@@ -188,7 +182,7 @@ void march(inout vec4 color, inout float distance) {
     } else {
       SDF step = map(position);
       if (step.distance <= MIN_DISTANCE) {
-        color = vec4(step.color * getLight(position, getNormal(position, step.distance)), 1.0);
+        color = vec4(getLight(position, getNormal(position, step.distance), step.color, step.metalness, step.roughness), 1.0);
         break;
       }
       distance += step.distance;

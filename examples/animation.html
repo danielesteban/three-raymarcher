@@ -85,6 +85,8 @@
           const shape = [shapes.sphere, shapes.capsule, shapes.box][Math.floor(Math.random() * (operation === operations.substraction ? 2 : 3))];
           return {
             color: new Color(Math.random() * 0xFFFFFF),
+            metalness: 0,
+            roughness: 1,
             operation,
             position: (new Vector3(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5))
               .normalize()
