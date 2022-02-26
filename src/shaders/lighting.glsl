@@ -1,3 +1,5 @@
+#ifdef ENVMAP_TYPE_CUBE_UV
+
 #define PI 3.141592653589793
 #define RECIPROCAL_PI 0.3183098861837907
 
@@ -73,26 +75,30 @@ vec3 getIBLIrradiance(const in vec3 normal) {
 }
 
 vec3 getLight(const in vec3 position, const in vec3 normal, const in vec3 diffuse) {
-  #ifdef ENVMAP_TYPE_CUBE_UV
-    PhysicalMaterial material;
-    material.diffuseColor = diffuse * (1.0 - metalness);
-    material.roughness = max(min(roughness, 1.0), 0.0525);
-    material.specularColor = mix(vec3(0.04), diffuse, metalness);
-    material.specularF90 = 1.0;
-    
-    GeometricContext geometry;
-    geometry.normal = normal;
-    geometry.viewDir = normalize(cameraPosition - position);
-  
-    ReflectedLight reflectedLight = ReflectedLight(vec3(0.0), vec3(0.0), vec3(0.0), vec3(0.0));
-    vec3 iblIrradiance = getIBLIrradiance(geometry.normal);
-    vec3 radiance = getIBLRadiance(geometry.viewDir, geometry.normal, material.roughness);
-    RE_IndirectDiffuse(geometry, material, reflectedLight);
-    RE_IndirectSpecular(radiance, iblIrradiance, geometry, material, reflectedLight);
-    vec3 indirectDiffuse = reflectedLight.directDiffuse + reflectedLight.indirectDiffuse;
-    vec3 indirectSpecular = reflectedLight.directSpecular + reflectedLight.indirectSpecular;
-    return indirectDiffuse + indirectSpecular;
-  #else
-    return BRDF_Lambert(material.diffuseColor) * envMapIntensity;
-  #endif
+  PhysicalMaterial material;
+  material.diffuseColor = diffuse * (1.0 - metalness);
+  material.roughness = max(min(roughness, 1.0), 0.0525);
+  material.specularColor = mix(vec3(0.04), diffuse, metalness);
+  material.specularF90 = 1.0;
+
+  GeometricContext geometry;
+  geometry.normal = normal;
+  geometry.viewDir = normalize(cameraPosition - position);
+
+  ReflectedLight reflectedLight = ReflectedLight(vec3(0.0), vec3(0.0), vec3(0.0), vec3(0.0));
+  vec3 iblIrradiance = getIBLIrradiance(geometry.normal);
+  vec3 radiance = getIBLRadiance(geometry.viewDir, geometry.normal, material.roughness);
+  RE_IndirectDiffuse(geometry, material, reflectedLight);
+  RE_IndirectSpecular(radiance, iblIrradiance, geometry, material, reflectedLight);
+  vec3 indirectDiffuse = reflectedLight.directDiffuse + reflectedLight.indirectDiffuse;
+  vec3 indirectSpecular = reflectedLight.directSpecular + reflectedLight.indirectSpecular;
+  return indirectDiffuse + indirectSpecular;
 }
+
+#else
+
+vec3 getLight(const in vec3 position, const in vec3 normal, const in vec3 diffuse) {
+  return diffuse * envMapIntensity;
+}
+
+#endif
