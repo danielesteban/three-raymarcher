@@ -80,8 +80,8 @@
       const { operations, shapes } = Raymarcher;
       const raymarcher = new Raymarcher({
         resolution: 0.5,
+        envMapIntensity: 0.7,
         envMap: (new PMREMGenerator(renderer)).fromScene(new RoomEnvironment()).texture,
-        envMapIntensity: 0.6,
         layers: [Array.from({ length: 16 }, () => ({
           color: (new Color()).setHSL(Math.random(), 0.8, 0.6),
           operation: operations.union,

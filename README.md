@@ -82,7 +82,7 @@ Assign a CubeUVMap texture to `userData.envMap` and control it's intensity with 
 ```js
 (new RGBELoader()).load('environment.hdr', (texture) => {
   raymarcher.userData.envMap = (new PMREMGenerator(renderer)).fromEquirectangular(texture).texture;
-  raymarcher.userData.envMapIntensity = 0.6;
+  raymarcher.userData.envMapIntensity = 0.7;
 });
 ```
 

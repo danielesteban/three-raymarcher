@@ -72,8 +72,9 @@
       const raymarcher = new Raymarcher({
         blending: 1,
         resolution: 0.5,
+        roughness: 0,
+        envMapIntensity: 0.7,
         envMap: environments.RoomEnvironment,
-        envMapIntensity: 0.6,
         layers: Array.from({ length: 8 }, (v, l) => Array.from({ length: 6 + Math.floor(Math.random() * 3)}, (v, e) => {
           const operation = e >= 6 ? operations.substraction : operations.union;
           const shape = [shapes.sphere, shapes.capsule, shapes.box][Math.floor(Math.random() * (operation === operations.substraction ? 2 : 3))];
@@ -101,7 +102,9 @@
       gui.add(raymarcher.userData, 'blending', 0, 2, 0.01);
       gui.add(raymarcher.userData, 'resolution', 0.01, 1, 0.01);
       {
-        const folder = gui.addFolder('Indirect Light');
+        const folder = gui.addFolder('Lighting');
+        gui.add(raymarcher.userData, 'metalness', 0, 1, 0.01);
+        gui.add(raymarcher.userData, 'roughness', 0, 1, 0.01);
         folder.add(raymarcher.userData, 'envMap', environments);
         folder.add(raymarcher.userData, 'envMapIntensity', 0, 1, 0.01);
       }
