@@ -40,7 +40,7 @@ const _sphere = new Sphere();
 class Raymarcher extends Mesh {
   constructor({
     blending = 0.5,
-    conetracing = false,
+    conetracing = true,
     envMap = null,
     envMapIntensity = 1,
     metalness = 0,
@@ -55,8 +55,8 @@ class Raymarcher extends Mesh {
     super(
       plane,
       new RawShaderMaterial({
-        transparent: !!conetracing,
         glslVersion: GLSL3,
+        transparent: !!conetracing,
         vertexShader: screenVertex,
         fragmentShader: screenFragment,
         uniforms: {
@@ -66,8 +66,8 @@ class Raymarcher extends Mesh {
       })
     );
     const material = new RawShaderMaterial({
-      transparent: !!conetracing,
       glslVersion: GLSL3,
+      transparent: !!conetracing,
       vertexShader: raymarcherVertex,
       fragmentShader: raymarcherFragment.replace('#include <lighting>', lighting),
       defines: {
