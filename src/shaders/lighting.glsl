@@ -1,12 +1,5 @@
-#define EPSILON 1e-6
 #define PI 3.141592653589793
 #define RECIPROCAL_PI 0.3183098861837907
-
-struct IncidentLight {
-  vec3 color;
-  vec3 direction;
-  bool visible;
-};
 
 struct ReflectedLight {
   vec3 directDiffuse;
@@ -26,10 +19,6 @@ struct PhysicalMaterial {
   vec3 specularColor;
   float specularF90;
 };
-
-vec3 inverseTransformDirection(in vec3 dir, in mat4 matrix) {
-  return normalize((vec4(dir, 0.0) * matrix).xyz);
-}
 
 vec2 DFGApprox(const in vec3 normal, const in vec3 viewDir, const in float roughness) {
   float dotNV = saturate(dot(normal, viewDir));
@@ -54,44 +43,6 @@ void computeMultiscattering(const in vec3 normal, const in vec3 viewDir, const i
 
 vec3 BRDF_Lambert(const in vec3 diffuseColor) {
   return RECIPROCAL_PI * diffuseColor;
-}
-
-vec3 F_Schlick(const in vec3 f0, const in float f90, const in float dotVH) {
-  float fresnel = exp2((-5.55473 * dotVH - 6.98316) * dotVH);
-  return f0 * (1.0 - fresnel) + (f90 * fresnel);
-}
-
-float V_GGX_SmithCorrelated(const in float alpha, const in float dotNL, const in float dotNV) {
-  float a2 = pow(alpha, 2.0);
-  float gv = dotNL * sqrt(a2 + (1.0 - a2) * pow(dotNV, 2.0));
-  float gl = dotNV * sqrt(a2 + (1.0 - a2) * pow(dotNL, 2.0));
-  return 0.5 / max(gv + gl, EPSILON);
-}
-
-float D_GGX(const in float alpha, const in float dotNH) {
-  float a2 = pow(alpha, 2.0);
-  float denom = pow(dotNH, 2.0) * (a2 - 1.0) + 1.0;
-  return RECIPROCAL_PI * a2 / pow(denom, 2.0);
-}
-
-vec3 BRDF_GGX(const in vec3 lightDir, const in vec3 viewDir, const in vec3 normal, const in vec3 f0, const in float f90, const in float roughness) {
-  float alpha = pow(roughness, 2.0);
-  vec3 halfDir = normalize(lightDir + viewDir);
-  float dotNL = saturate(dot(normal, lightDir));
-  float dotNV = saturate(dot(normal, viewDir));
-  float dotNH = saturate(dot(normal, halfDir));
-  float dotVH = saturate(dot(viewDir, halfDir));
-  vec3 F = F_Schlick(f0, f90, dotVH);
-  float V = V_GGX_SmithCorrelated(alpha, dotNL, dotNV);
-  float D = D_GGX(alpha, dotNH);
-  return F * (V * D);
-}
-
-void RE_Direct(const in IncidentLight directLight, const in GeometricContext geometry, const in PhysicalMaterial material, inout ReflectedLight reflectedLight) {
-  float dotNL = saturate(dot(geometry.normal, directLight.direction));
-  vec3 irradiance = dotNL * directLight.color;
-  reflectedLight.directSpecular += irradiance * BRDF_GGX(directLight.direction, geometry.viewDir, geometry.normal, material.specularColor, material.specularF90, material.roughness);
-  reflectedLight.directDiffuse += irradiance * BRDF_Lambert(material.diffuseColor);
 }
 
 void RE_IndirectDiffuse(const in GeometricContext geometry, const in PhysicalMaterial material, inout ReflectedLight reflectedLight) {
