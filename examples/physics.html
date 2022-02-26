@@ -76,8 +76,8 @@
 
       const { operations, shapes } = Raymarcher;
       const raymarcher = new Raymarcher({
-        blending: 1,
         resolution: 0.5,
+        blending: 1,
         roughness: 0,
         envMapIntensity: 0.7,
         envMap: (new PMREMGenerator(renderer)).fromScene(new RoomEnvironment()).texture,
