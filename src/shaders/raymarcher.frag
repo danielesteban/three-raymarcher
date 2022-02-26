@@ -8,25 +8,16 @@ struct Bounds {
 
 struct Entity {
   vec3 color;
-  float metalness;
   int operation;
   vec3 position;
   vec4 rotation;
-  float roughness;
   vec3 scale;
   int shape;
-};
-
-struct Light {
-  vec3 color;
-  vec3 direction;
 };
 
 struct SDF {
   float distance;
   vec3 color;
-  float metalness;
-  float roughness;
 };
 
 out vec4 fragColor;
@@ -41,12 +32,12 @@ uniform vec3 cameraPosition;
 uniform Entity entities[MAX_ENTITIES];
 uniform sampler2D envMap;
 uniform float envMapIntensity;
-#if NUM_LIGHTS > 0
-uniform Light lights[NUM_LIGHTS];
-#endif
+uniform float metalness;
 uniform int numEntities;
 uniform vec2 resolution;
+uniform float roughness;
 
+#define saturate(a) clamp(a, 0.0, 1.0)
 #define texture2D texture
 #include <cube_uv_reflection_fragment>
 #include <encodings_pars_fragment>
@@ -91,26 +82,22 @@ SDF sdEntity(in vec3 p, const in Entity e) {
       distance = sdEllipsoid(p, e.scale * 0.5);
       break;
   }
-  return SDF(distance, e.color, e.metalness, e.roughness);
+  return SDF(distance, e.color);
 }
 
 SDF opSmoothUnion(const in SDF a, const in SDF b, const in float k) {
-  float h = clamp(0.5 + 0.5 * (b.distance - a.distance) / k, 0.0, 1.0);
+  float h = saturate(0.5 + 0.5 * (b.distance - a.distance) / k);
   return SDF(
     mix(b.distance, a.distance, h) - k*h*(1.0-h),
-    mix(b.color, a.color, h),
-    mix(b.metalness, a.metalness, h),
-    mix(b.roughness, a.roughness, h)
+    mix(b.color, a.color, h)
   );
 }
 
 SDF opSmoothSubtraction(const in SDF a, const in SDF b, const in float k) {
-  float h = clamp(0.5 - 0.5 * (a.distance + b.distance) / k, 0.0, 1.0);
+  float h = saturate(0.5 - 0.5 * (a.distance + b.distance) / k);
   return SDF(
     mix(a.distance, -b.distance, h) + k*h*(1.0-h),
-    mix(a.color, b.color, h),
-    mix(a.metalness, b.metalness, h),
-    mix(a.roughness, b.roughness, h)
+    mix(a.color, b.color, h)
   );
 }
 
@@ -159,7 +146,7 @@ void march(inout vec4 color, inout float distance) {
           closest = distance;
         }
         float alpha = smoothstep(cone, -cone, step.distance);
-        vec3 pixel = getLight(position, getNormal(position, step.distance), step.color, step.metalness, step.roughness);
+        vec3 pixel = getLight(position, getNormal(position, step.distance), step.color);
         color.rgb += coverage * (alpha * pixel);
         coverage *= (1.0 - alpha);
         if (coverage <= MIN_COVERAGE) {
@@ -182,7 +169,7 @@ void march(inout vec4 color, inout float distance) {
     } else {
       SDF step = map(position);
       if (step.distance <= MIN_DISTANCE) {
-        color = vec4(getLight(position, getNormal(position, step.distance), step.color, step.metalness, step.roughness), 1.0);
+        color = vec4(getLight(position, getNormal(position, step.distance), step.color), 1.0);
         break;
       }
       distance += step.distance;
@@ -195,7 +182,7 @@ void main() {
   vec4 color = vec4(0.0);
   float distance = cameraNear;
   march(color, distance);
-  fragColor = clamp(LinearTosRGB(color), 0.0, 1.0);
+  fragColor = saturate(LinearTosRGB(color));
   float z = (distance >= MAX_DISTANCE) ? cameraFar : (distance * dot(cameraDirection, ray));
   float ndcDepth = -((cameraFar + cameraNear) / (cameraNear - cameraFar)) + ((2.0 * cameraFar * cameraNear) / (cameraNear - cameraFar)) / z;
   gl_FragDepth = ((gl_DepthRange.diff * ndcDepth) + gl_DepthRange.near + gl_DepthRange.far) / 2.0;

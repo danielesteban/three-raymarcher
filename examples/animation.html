@@ -28,7 +28,6 @@
     <script type="module">
       import {
         Color,
-        DirectionalLight,
         LinearFilter,
         Matrix4,
         NearestFilter,
@@ -68,10 +67,6 @@
         RoomEnvironment: (new PMREMGenerator(renderer)).fromScene(new RoomEnvironment()).texture,
         Disabled: null,
       };
-  
-      const light = new DirectionalLight(0xFFFFAA, 0.6);
-      light.position.set(1, 1, 1);
-      scene.add(light);
 
       const { operations, shapes } = Raymarcher;
       const raymarcher = new Raymarcher({
@@ -85,8 +80,6 @@
           const shape = [shapes.sphere, shapes.capsule, shapes.box][Math.floor(Math.random() * (operation === operations.substraction ? 2 : 3))];
           return {
             color: new Color(Math.random() * 0xFFFFFF),
-            metalness: 0,
-            roughness: 1,
             operation,
             position: (new Vector3(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5))
               .normalize()
@@ -108,11 +101,6 @@
       gui.add(raymarcher.userData, 'conetracing');
       gui.add(raymarcher.userData, 'blending', 0, 2, 0.01);
       gui.add(raymarcher.userData, 'resolution', 0.01, 1, 0.01);
-      {
-        const folder = gui.addFolder('Direct Light');
-        folder.addColor(light, 'color');
-        folder.add(light, 'intensity', 0, 1, 0.01);
-      }
       {
         const folder = gui.addFolder('Indirect Light');
         folder.add(raymarcher.userData, 'envMap', environments);

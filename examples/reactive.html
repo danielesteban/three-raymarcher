@@ -85,8 +85,6 @@
         envMapIntensity: 0.6,
         layers: [Array.from({ length: 16 }, () => ({
           color: (new Color()).setHSL(Math.random(), 0.8, 0.6),
-          metalness: 0,
-          roughness: 1,
           operation: operations.union,
           position: (new Vector3(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5))
             .normalize(),

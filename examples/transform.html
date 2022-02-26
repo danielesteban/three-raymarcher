@@ -41,7 +41,6 @@
     <script type="module">
       import {
         Color,
-        DirectionalLight,
         Group,
         PerspectiveCamera,
         PMREMGenerator,
@@ -78,10 +77,6 @@
       controls.target.set(0, 4, 0);
       controls.enableDamping = true;
 
-      const light = new DirectionalLight(0xFFFFFF, 0.6);
-      light.position.set(1, 1, 1);
-      scene.add(light);
-
       const { operations, shapes } = Raymarcher;
       const raymarcher = new Raymarcher({
         resolution: 0.5,
@@ -91,8 +86,6 @@
           const shape = [shapes.box, shapes.capsule, shapes.sphere][Math.floor(Math.random() * 3)];
           return {
             color: new Color(Math.random() * 0xFFFFFF),
-            metalness: 0,
-            roughness: 1,
             operation: operations.union,
             position: (new Vector3(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5))
               .normalize()

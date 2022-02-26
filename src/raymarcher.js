@@ -1,6 +1,5 @@
 import {
   BoxGeometry,
-  Color,
   CylinderGeometry,
   DepthTexture,
   Frustum,
@@ -44,8 +43,10 @@ class Raymarcher extends Mesh {
     conetracing = false,
     envMap = null,
     envMapIntensity = 1,
+    metalness = 0,
     layers = [],
     resolution = 1,
+    roughness = 1,
   } = {}) {
     const plane = new PlaneGeometry(2, 2, 1, 1);
     plane.deleteAttribute('normal');
@@ -54,6 +55,7 @@ class Raymarcher extends Mesh {
     super(
       plane,
       new RawShaderMaterial({
+        transparent: !!conetracing,
         glslVersion: GLSL3,
         vertexShader: screenVertex,
         fragmentShader: screenFragment,
@@ -83,26 +85,19 @@ class Raymarcher extends Mesh {
         cameraFar: { value: 0 },
         cameraFov: { value: 0 },
         cameraNear: { value: 0 },
-        resolution: { value: new Vector2() },
         envMap: { value: null },
         envMapIntensity: { value: envMapIntensity },
-        lights: {
-          value: [],
-          properties: {
-            color: {},
-            direction: {},
-          },
-        },
+        metalness: { value: metalness },
+        resolution: { value: new Vector2() },
+        roughness: { value: roughness },
         numEntities: { value: 0 },
         entities: {
           value: [],
           properties: {
             color: {},
-            metalness: {},
             operation: {},
             position: {},
             rotation: {},
-            roughness: {},
             scale: {},
             shape: {},
           },
@@ -123,7 +118,7 @@ class Raymarcher extends Mesh {
       set conetracing(value) {
         if (defines.CONETRACING !== !!value) {
           defines.CONETRACING = !!value;
-          material.transparent = !!value;
+          this.material = material.transparent = !!value;
           material.needsUpdate = true;
         }
       },
@@ -160,6 +155,18 @@ class Raymarcher extends Mesh {
       set envMapIntensity(value) {
         uniforms.envMapIntensity.value = value;
       },
+      get metalness() {
+        return uniforms.metalness.value;
+      },
+      set metalness(value) {
+        uniforms.metalness.value = value;
+      },
+      get roughness() {
+        return uniforms.roughness.value;
+      },
+      set roughness(value) {
+        uniforms.roughness.value = value;
+      },
       layers,
       raymarcher: new Mesh(plane, material),
       resolution,
@@ -174,13 +181,15 @@ class Raymarcher extends Mesh {
 
   copy(source) {
     const { userData } = this;
-    const { userData: { blending, conetracing, envMap, envMapIntensity, layers, resolution } } = source;
+    const { userData: { blending, conetracing, envMap, envMapIntensity, metalness, layers, resolution, roughness } } = source;
     userData.blending = blending;
     userData.conetracing = conetracing;
     userData.envMap = envMap;
     userData.envMapIntensity = envMapIntensity;
+    userData.metalness = metalness;
     userData.layers = layers.map((layer) => layer.map(Raymarcher.cloneEntity));
     userData.resolution = resolution;
+    userData.roughness = roughness;
     return this;
   }
 
@@ -238,24 +247,6 @@ class Raymarcher extends Mesh {
       }, [])
       .sort(({ distance: a }, { distance: b }) => defines.CONETRACING ? (b - a) : (a - b));
 
-    const lights = [];
-    scene.traverseVisible((light) => {
-      if (light.isDirectionalLight && light.layers.test(camera.layers)) {
-        lights.push(light);
-      }
-    });
-    if (defines.NUM_LIGHTS !== lights.length) {
-      defines.NUM_LIGHTS = lights.length;
-      uniforms.lights.value = lights.map(() => ({ color: new Color(), direction: new Vector3() }));
-      raymarcher.material.needsUpdate = true;
-    }
-    lights.forEach((light, i) => {
-      const uniform = uniforms.lights.value[i];
-      uniform.color.copy(light.color).multiplyScalar(light.intensity);
-      light.target.getWorldPosition(uniform.direction)
-        .sub(light.getWorldPosition(_position));
-    });
-
     renderer.getDrawingBufferSize(_size).multiplyScalar(resolution).floor();
     if (target.width !== _size.x || target.height !== _size.y) {
       target.setSize(_size.x, _size.y);
@@ -277,14 +268,12 @@ class Raymarcher extends Mesh {
       uniforms.bounds.value.center.copy(bounds.center);
       uniforms.bounds.value.radius = bounds.radius;
       uniforms.numEntities.value = entities.length;
-      entities.forEach(({ color, metalness, operation, position, rotation, roughness, scale, shape }, i) => {
+      entities.forEach(({ color, operation, position, rotation, scale, shape }, i) => {
         const uniform = uniforms.entities.value[i];
         uniform.color.copy(color);
-        uniform.metalness = metalness;
         uniform.operation = operation;
         uniform.position.copy(position);
         uniform.rotation.copy(rotation);
-        uniform.roughness = roughness;
         uniform.scale.copy(scale);
         uniform.shape = shape;
       });
@@ -314,14 +303,12 @@ class Raymarcher extends Mesh {
     }));
   }
 
-  static cloneEntity({ color, metalness, operation, position, rotation, roughness, scale, shape }) {
+  static cloneEntity({ color, operation, position, rotation, scale, shape }) {
     return {
       color: color.clone(),
-      metalness,
       operation,
       position: position.clone(),
       rotation: rotation.clone(),
-      roughness,
       scale: scale.clone(),
       shape,
     };
