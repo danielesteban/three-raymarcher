@@ -3,13 +3,6 @@
 #define PI 3.141592653589793
 #define RECIPROCAL_PI 0.3183098861837907
 
-struct ReflectedLight {
-  vec3 directDiffuse;
-  vec3 directSpecular;
-  vec3 indirectDiffuse;
-  vec3 indirectSpecular;
-};
-
 struct GeometricContext {
   vec3 normal;
   vec3 viewDir;
@@ -21,6 +14,19 @@ struct PhysicalMaterial {
   vec3 specularColor;
   float specularF90;
 };
+
+struct ReflectedLight {
+  vec3 indirectDiffuse;
+  vec3 indirectSpecular;
+};
+
+vec3 BRDF_Lambert(const in vec3 diffuseColor) {
+  return RECIPROCAL_PI * diffuseColor;
+}
+
+void RE_IndirectDiffuse(const in GeometricContext geometry, const in PhysicalMaterial material, inout ReflectedLight reflectedLight) {
+  reflectedLight.indirectDiffuse += BRDF_Lambert(material.diffuseColor);
+}
 
 vec2 DFGApprox(const in vec3 normal, const in vec3 viewDir, const in float roughness) {
   float dotNV = saturate(dot(normal, viewDir));
@@ -41,14 +47,6 @@ void computeMultiscattering(const in vec3 normal, const in vec3 viewDir, const i
   vec3 Fms = FssEss * Favg / (1.0 - Ems * Favg);
   singleScatter += FssEss;
   multiScatter += Fms * Ems;
-}
-
-vec3 BRDF_Lambert(const in vec3 diffuseColor) {
-  return RECIPROCAL_PI * diffuseColor;
-}
-
-void RE_IndirectDiffuse(const in GeometricContext geometry, const in PhysicalMaterial material, inout ReflectedLight reflectedLight) {
-  reflectedLight.indirectDiffuse += BRDF_Lambert(material.diffuseColor);
 }
 
 void RE_IndirectSpecular(const in vec3 radiance, const in vec3 irradiance, const in GeometricContext geometry, const in PhysicalMaterial material, inout ReflectedLight reflectedLight) {
@@ -75,24 +73,23 @@ vec3 getIBLIrradiance(const in vec3 normal) {
 }
 
 vec3 getLight(const in vec3 position, const in vec3 normal, const in vec3 diffuse) {
+  GeometricContext geometry;
+  geometry.normal = normal;
+  geometry.viewDir = normalize(cameraPosition - position);
+
   PhysicalMaterial material;
   material.diffuseColor = diffuse * (1.0 - metalness);
   material.roughness = max(min(roughness, 1.0), 0.0525);
   material.specularColor = mix(vec3(0.04), diffuse, metalness);
   material.specularF90 = 1.0;
 
-  GeometricContext geometry;
-  geometry.normal = normal;
-  geometry.viewDir = normalize(cameraPosition - position);
-
-  ReflectedLight reflectedLight = ReflectedLight(vec3(0.0), vec3(0.0), vec3(0.0), vec3(0.0));
-  vec3 iblIrradiance = getIBLIrradiance(geometry.normal);
+  ReflectedLight reflectedLight = ReflectedLight(vec3(0.0), vec3(0.0));
   vec3 radiance = getIBLRadiance(geometry.viewDir, geometry.normal, material.roughness);
+  vec3 irradiance = getIBLIrradiance(geometry.normal);
   RE_IndirectDiffuse(geometry, material, reflectedLight);
-  RE_IndirectSpecular(radiance, iblIrradiance, geometry, material, reflectedLight);
-  vec3 indirectDiffuse = reflectedLight.directDiffuse + reflectedLight.indirectDiffuse;
-  vec3 indirectSpecular = reflectedLight.directSpecular + reflectedLight.indirectSpecular;
-  return indirectDiffuse + indirectSpecular;
+  RE_IndirectSpecular(radiance, irradiance, geometry, material, reflectedLight);
+
+  return reflectedLight.indirectDiffuse + reflectedLight.indirectSpecular;
 }
 
 #else
