@@ -24,10 +24,6 @@ vec3 BRDF_Lambert(const in vec3 diffuseColor) {
   return RECIPROCAL_PI * diffuseColor;
 }
 
-void RE_IndirectDiffuse(const in GeometricContext geometry, const in PhysicalMaterial material, inout ReflectedLight reflectedLight) {
-  reflectedLight.indirectDiffuse += BRDF_Lambert(material.diffuseColor);
-}
-
 vec2 DFGApprox(const in vec3 normal, const in vec3 viewDir, const in float roughness) {
   float dotNV = saturate(dot(normal, viewDir));
   const vec4 c0 = vec4(-1.0, -0.0275, -0.572, 0.022);
@@ -47,6 +43,10 @@ void computeMultiscattering(const in vec3 normal, const in vec3 viewDir, const i
   vec3 Fms = FssEss * Favg / (1.0 - Ems * Favg);
   singleScatter += FssEss;
   multiScatter += Fms * Ems;
+}
+
+void RE_IndirectDiffuse(const in vec3 irradiance, const in GeometricContext geometry, const in PhysicalMaterial material, inout ReflectedLight reflectedLight) {
+  reflectedLight.indirectDiffuse += irradiance * BRDF_Lambert(material.diffuseColor);
 }
 
 void RE_IndirectSpecular(const in vec3 radiance, const in vec3 irradiance, const in GeometricContext geometry, const in PhysicalMaterial material, inout ReflectedLight reflectedLight) {
@@ -86,7 +86,7 @@ vec3 getLight(const in vec3 position, const in vec3 normal, const in vec3 diffus
   ReflectedLight reflectedLight = ReflectedLight(vec3(0.0), vec3(0.0));
   vec3 radiance = getIBLRadiance(geometry.viewDir, geometry.normal, material.roughness);
   vec3 irradiance = getIBLIrradiance(geometry.normal);
-  RE_IndirectDiffuse(geometry, material, reflectedLight);
+  RE_IndirectDiffuse(irradiance, geometry, material, reflectedLight);
   RE_IndirectSpecular(radiance, irradiance, geometry, material, reflectedLight);
 
   return reflectedLight.indirectDiffuse + reflectedLight.indirectSpecular;
