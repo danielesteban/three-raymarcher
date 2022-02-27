@@ -50,7 +50,7 @@
       const stats = new Stats();
       document.body.appendChild(stats.dom);
       const renderer = new WebGLRenderer({ alpha: true });
-      renderer.encoding = sRGBEncoding;
+      renderer.outputEncoding = sRGBEncoding;
       renderer.setSize(window.innerWidth, window.innerHeight);
       const camera = new PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.01, 1000);
       const controls = new OrbitControls(camera, renderer.domElement);
