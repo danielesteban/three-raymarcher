@@ -252,12 +252,14 @@ class Raymarcher extends Mesh {
     }
 
     const currentAutoClear = renderer.autoClear;
+    const currentClearAlpha = renderer.getClearAlpha();
     const currentRenderTarget = renderer.getRenderTarget();
-    const currentXrEnabled = renderer.xr.enabled;
     const currentShadowAutoUpdate = renderer.shadowMap.autoUpdate;
+    const currentXrEnabled = renderer.xr.enabled;
     renderer.autoClear = false;
-    renderer.xr.enabled = false;
     renderer.shadowMap.autoUpdate = false;
+    renderer.xr.enabled = false;
+    renderer.setClearAlpha(0);
     renderer.setRenderTarget(target);
     renderer.state.buffers.depth.setMask(true);
 
@@ -279,8 +281,9 @@ class Raymarcher extends Mesh {
     });
 
     renderer.autoClear = currentAutoClear;
-    renderer.xr.enabled = currentXrEnabled;
     renderer.shadowMap.autoUpdate = currentShadowAutoUpdate;
+    renderer.xr.enabled = currentXrEnabled;
+    renderer.setClearAlpha(currentClearAlpha);
     renderer.setRenderTarget(currentRenderTarget);
     if (camera.viewport) renderer.state.viewport(camera.viewport);
   }
