@@ -53,8 +53,11 @@
       renderer.outputEncoding = sRGBEncoding;
       renderer.setSize(window.innerWidth, window.innerHeight);
       const camera = new PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.01, 1000);
-      const controls = new OrbitControls(camera, renderer.domElement);
       const clock = new Clock();
+      document.addEventListener('visibilitychange', () => (
+        document.visibilityState === 'visible' && clock.start()
+      ));
+      const controls = new OrbitControls(camera, renderer.domElement);
       document.getElementById('renderer').appendChild(renderer.domElement);
       window.addEventListener('resize', () => {
         renderer.setSize(window.innerWidth, window.innerHeight);
@@ -145,10 +148,10 @@
         });
       
         renderer.setAnimationLoop(() => {
-          const delta = Math.min(clock.getDelta(), 1 / 30);
+          const delta = Math.min(clock.getDelta(), 1);
   
-          raycaster.setFromCamera(pointer, camera);
           plane.lookAt(camera.position);
+          raycaster.setFromCamera(pointer, camera);
           const hit = raycaster.intersectObject(plane)[0];
           if (hit) {
             const motionState = pointer.body.getMotionState();
