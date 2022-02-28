@@ -52,19 +52,17 @@ class Raymarcher extends Mesh {
     plane.deleteAttribute('normal');
     plane.deleteAttribute('uv');
     const target = new WebGLRenderTarget(1, 1, { depthTexture: new DepthTexture(1, 1, UnsignedShortType) });
-    super(
-      plane,
-      new RawShaderMaterial({
-        glslVersion: GLSL3,
-        transparent: !!conetracing,
-        vertexShader: screenVertex,
-        fragmentShader: screenFragment,
-        uniforms: {
-          colorTexture: { value: target.texture },
-          depthTexture: { value: target.depthTexture },
-        },
-      })
-    );
+    const screen = new RawShaderMaterial({
+      glslVersion: GLSL3,
+      transparent: !!conetracing,
+      vertexShader: screenVertex,
+      fragmentShader: screenFragment,
+      uniforms: {
+        colorTexture: { value: target.texture },
+        depthTexture: { value: target.depthTexture },
+      },
+    });
+    super(plane, screen);
     const material = new RawShaderMaterial({
       glslVersion: GLSL3,
       transparent: !!conetracing,
@@ -118,7 +116,7 @@ class Raymarcher extends Mesh {
       set conetracing(value) {
         if (defines.CONETRACING !== !!value) {
           defines.CONETRACING = !!value;
-          this.material = material.transparent = !!value;
+          material.transparent = screen.transparent = !!value;
           material.needsUpdate = true;
         }
       },
