@@ -1,0 +1,170 @@
+<!doctype html>
+<html>
+  <head>
+    <title>three-raymarcher</title>
+    <meta charset="utf-8">
+    <style>
+      body {
+        background: linear-gradient(to top, #0a0a0a, #181a1a, #2d2d2f);
+        margin: 0;
+      }
+      #profiler {
+        position: fixed;
+        left: 0;
+        bottom: 0;
+        padding: 0.25rem 1rem;
+        background: rgba(0, 0, 0, .2);
+        font-family: monospace;
+        font-size: 32px;
+        color: #fff;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="renderer"></div>
+    <div id="profiler"></div>
+    <script async src="https://cdn.jsdelivr.net/npm/es-module-shims@1.4.6/dist/es-module-shims.js"></script>
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://cdn.jsdelivr.net/npm/three@0.138.0/build/three.module.js",
+          "three-environment": "https://cdn.jsdelivr.net/npm/three@0.138.0/examples/jsm/environments/RoomEnvironment.js",
+          "three-gui": "https://cdn.jsdelivr.net/npm/three@0.138.0/examples/jsm/libs/lil-gui.module.min.js",
+          "three-orbit": "https://cdn.jsdelivr.net/npm/three@0.138.0/examples/jsm/controls/OrbitControls.js",
+          "three-stats": "https://cdn.jsdelivr.net/npm/three@0.138.0/examples/jsm/libs/stats.module.js",
+          "three-raymarcher": "../module.js"
+        }
+      }
+    </script>
+    <script type="module">
+      import {
+        Color,
+        LinearFilter,
+        Matrix4,
+        NearestFilter,
+        PerspectiveCamera,
+        PMREMGenerator,
+        Quaternion,
+        Scene,
+        sRGBEncoding,
+        Vector3,
+        WebGLRenderer,
+      } from 'three';
+      import { RoomEnvironment } from 'three-environment';
+      import { GUI } from 'three-gui';
+      import { OrbitControls } from 'three-orbit';
+      import Stats from 'three-stats';
+      import Raymarcher from 'three-raymarcher';
+
+      const stats = new Stats();
+      document.body.appendChild(stats.dom);
+      const renderer = new WebGLRenderer({ alpha: true });
+      renderer.outputEncoding = sRGBEncoding;
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      const camera = new PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.01, 1000);
+      const controls = new OrbitControls(camera, renderer.domElement);
+      document.getElementById('renderer').appendChild(renderer.domElement);
+      window.addEventListener('resize', () => {
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+      }, false);
+
+      const scene = new Scene();
+      camera.position.set(0, 16, 8);
+      controls.enableDamping = true;
+
+      const environments = {
+        RoomEnvironment: (new PMREMGenerator(renderer)).fromScene(new RoomEnvironment()).texture,
+        Disabled: null,
+      };
+
+      const { operations, shapes } = Raymarcher;
+      const raymarcher = new Raymarcher({
+        blending: 2,
+        roughness: 0,
+        envMapIntensity: 0.6,
+        envMap: environments.RoomEnvironment,
+        layers: [Array.from({ length: 24 }, (v, e) => {
+          const shape = [shapes.sphere, shapes.capsule, shapes.box][e % 3];
+          return {
+            color: new Color(Math.random() * 0xFFFFFF),
+            operation: operations.union,
+            position: (new Vector3())
+              .set(
+                Math.sin(e * Math.PI * 2 / 24),
+                Math.sin(e * Math.PI * 2 / 24 - Math.PI * 0.5) * 0.5,
+                Math.cos(e * Math.PI * 2 / 24)
+              )
+              .normalize()
+              .multiplyScalar(10)
+              .add(controls.target),
+            rotation: new Quaternion(0, 0, 0, 1),
+            scale: (new Vector3(1, shape === shapes.capsule ? 2 : 1, 1)).multiplyScalar(2),
+            shape,
+          };
+        })],
+      });
+      scene.add(raymarcher);
+
+      const gui = new GUI({ title: 'three-raymarcher' });
+      gui.add(raymarcher.userData, 'resolution', 0.01, 1, 0.01);
+      gui.add(raymarcher.userData, 'conetracing');
+      gui.add(raymarcher.userData, 'blending', 0, 2, 0.01);
+      gui.add(raymarcher.userData, 'metalness', 0, 1, 0.01);
+      gui.add(raymarcher.userData, 'roughness', 0, 1, 0.01);
+      gui.add(raymarcher.userData, 'envMapIntensity', 0, 1, 0.01);
+      gui.add(raymarcher.userData, 'envMap', environments);
+
+      const profiler = {
+        dom: document.getElementById('profiler'),
+        timer: renderer.extensions.get('EXT_disjoint_timer_query_webgl2'),
+        numSamples: 10,
+        sample: 0,
+        samples: Array.from({ length: 10 }, () => 0),
+        sum: 0,
+        avg: 0,
+        beforeRender() {
+          if (this.timer && !this.query) {
+            const gl = renderer.getContext();
+            this.query = gl.createQuery();
+            this.isRunning = true;
+            gl.beginQuery(this.timer.TIME_ELAPSED_EXT, this.query);
+          }
+        },
+        afterRender() {
+          const gl = renderer.getContext();
+          if (this.timer && this.isRunning) {
+            this.isRunning = false;
+            gl.endQuery(this.timer.TIME_ELAPSED_EXT);
+          }
+          if (this.query) {
+            const available = gl.getQueryParameter(this.query, gl.QUERY_RESULT_AVAILABLE);
+            const disjoint = gl.getParameter(this.timer.GPU_DISJOINT_EXT);
+            if (available && !disjoint) {
+              const time = gl.getQueryParameter(this.query, gl.QUERY_RESULT);
+              this.sum -= this.samples[this.sample];
+              this.samples[this.sample] = time;
+              this.sum += this.samples[this.sample];
+              this.sample = (this.sample + 1) % this.numSamples;
+              this.avg = Math.round(this.sum / this.numSamples);
+              this.dom.innerText = `${Math.round(this.avg / 1000000)}ms`;
+            }
+            if (available || disjoint) {
+              gl.deleteQuery(this.query);
+              this.query = null;
+            }
+          }
+        }
+      };
+
+      renderer.setAnimationLoop(() => {
+        controls.update();
+        stats.update();
+        profiler.beforeRender();
+        renderer.render(scene, camera);
+        profiler.afterRender();
+      });
+    </script>
+  </body>
+</html>

@@ -5,7 +5,6 @@
     <meta charset="utf-8">
     <style>
       body {
-        background: linear-gradient(to top, #0a0a0a, #181a1a, #2d2d2f);
         cursor: grab;
         margin: 0;
       }
@@ -18,8 +17,9 @@
       {
         "imports": {
           "three": "https://cdn.jsdelivr.net/npm/three@0.138.0/build/three.module.js",
-          "three-environment": "https://cdn.jsdelivr.net/npm/three@0.138.0/examples/jsm/environments/RoomEnvironment.js",
+          "three-gui": "https://cdn.jsdelivr.net/npm/three@0.138.0/examples/jsm/libs/lil-gui.module.min.js",
           "three-orbit": "https://cdn.jsdelivr.net/npm/three@0.138.0/examples/jsm/controls/OrbitControls.js",
+          "three-rgbe": "https://cdn.jsdelivr.net/npm/three@0.138.0/examples/jsm/loaders/RGBELoader.js",
           "three-stats": "https://cdn.jsdelivr.net/npm/three@0.138.0/examples/jsm/libs/stats.module.js",
           "three-raymarcher": "../module.js"
         }
@@ -30,6 +30,7 @@
       import {
         Clock,
         Color,
+        EquirectangularReflectionMapping,
         Mesh,
         PerspectiveCamera,
         PlaneGeometry,
@@ -42,14 +43,15 @@
         Vector3,
         WebGLRenderer,
       } from 'three';
-      import { RoomEnvironment } from 'three-environment';
+      import { GUI } from 'three-gui';
       import { OrbitControls } from 'three-orbit';
+      import { RGBELoader } from 'three-rgbe';
       import Stats from 'three-stats';
       import Raymarcher from 'three-raymarcher';
 
       const stats = new Stats();
       document.body.appendChild(stats.dom);
-      const renderer = new WebGLRenderer({ alpha: true });
+      const renderer = new WebGLRenderer();
       renderer.outputEncoding = sRGBEncoding;
       renderer.setSize(window.innerWidth, window.innerHeight);
       const camera = new PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.01, 1000);
@@ -81,9 +83,9 @@
       const raymarcher = new Raymarcher({
         resolution: 0.5,
         blending: 1,
+        metalness: 1,
         roughness: 0,
         envMapIntensity: 0.6,
-        envMap: (new PMREMGenerator(renderer)).fromScene(new RoomEnvironment()).texture,
         layers: [Array.from({ length: 16 }, (v, i) => ({
           color: (new Color()).setHSL(Math.random(), 0.8, 0.6),
           operation: operations.union,
@@ -95,7 +97,38 @@
           shape: shapes.sphere,
         }))],
       });
+      raymarcher.visible = false;
       scene.add(raymarcher);
+
+      const environments = {
+        Apartment: 'https://cdn.glitch.global/76fe1fa3-d3aa-4d7b-911f-8ad91e01d136/lebombo_2k.hdr?v=1646042358302',
+        City: 'https://cdn.glitch.global/76fe1fa3-d3aa-4d7b-911f-8ad91e01d136/potsdamer_platz_2k.hdr?v=1646042358575',
+        Forest: 'https://cdn.glitch.global/76fe1fa3-d3aa-4d7b-911f-8ad91e01d136/neurathen_rock_castle_2k.hdr?v=1646042624812',
+        Studio: 'https://cdn.glitch.global/76fe1fa3-d3aa-4d7b-911f-8ad91e01d136/studio_small_08_2k.hdr?v=1646042358774',
+        Warehouse: 'https://cdn.glitch.global/76fe1fa3-d3aa-4d7b-911f-8ad91e01d136/empty_warehouse_01_2k.hdr?v=1646042357806',
+        Sunset: 'https://cdn.glitch.global/76fe1fa3-d3aa-4d7b-911f-8ad91e01d136/venice_sunset_2k.hdr?v=1646042356028',
+        Dawn: 'https://cdn.glitch.global/76fe1fa3-d3aa-4d7b-911f-8ad91e01d136/kiara_1_dawn_2k.hdr?v=1646042357931',
+        Night: 'https://cdn.glitch.global/76fe1fa3-d3aa-4d7b-911f-8ad91e01d136/dikhololo_night_2k.hdr?v=1646042357152',
+      };
+      const loader = new RGBELoader();
+      const pmrem = new PMREMGenerator(renderer);
+      const loadEnvironment = (environment) => {
+        loader.load(environments[environment], (texture) => {
+          texture.mapping = EquirectangularReflectionMapping;
+          scene.background = texture;
+          raymarcher.userData.envMap = pmrem.fromEquirectangular(texture).texture;
+          raymarcher.visible = true;
+        });
+      };
+      loadEnvironment('Forest');
+
+      const gui = new GUI({ title: 'three-raymarcher' });
+      gui.add(raymarcher.userData, 'resolution', 0.01, 1, 0.01);
+      gui.add(raymarcher.userData, 'blending', 0.2, 2, 0.01);
+      gui.add(raymarcher.userData, 'metalness', 0, 1, 0.01);
+      gui.add(raymarcher.userData, 'roughness', 0, 1, 0.01);
+      gui.add(raymarcher.userData, 'envMapIntensity', 0, 1, 0.01);
+      gui.add({ envMap: 'Forest' }, 'envMap', Object.keys(environments)).onChange(loadEnvironment);
 
       Ammo().then((Ammo) => {
         const CF_STATIC_OBJECT = 1;
