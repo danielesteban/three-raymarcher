@@ -8,6 +8,7 @@
  * Interactive: [glitch.com/~three-raymarcher-interactive](https://glitch.com/edit/#!/three-raymarcher-interactive)
  * Physics: [glitch.com/~three-raymarcher-physics](https://glitch.com/edit/#!/three-raymarcher-physics)
  * Reactive: [glitch.com/~three-raymarcher-reactive](https://glitch.com/edit/#!/three-raymarcher-reactive)
+ * Skinning: [glitch.com/~three-raymarcher-skinning](https://glitch.com/edit/#!/three-raymarcher-skinning)
  * Transform: [glitch.com/~three-raymarcher-transform](https://glitch.com/edit/#!/three-raymarcher-transform)
  * react-three-fiber: [codesandbox.io/s/three-raymarcher-3xdor](https://codesandbox.io/s/three-raymarcher-3xdor)
 

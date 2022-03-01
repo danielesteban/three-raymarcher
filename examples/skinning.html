@@ -1,0 +1,213 @@
+<!doctype html>
+<html>
+  <head>
+    <title>three-raymarcher</title>
+    <meta charset="utf-8">
+    <style>
+      body {
+        background: linear-gradient(to top, #0a0a0a, #181a1a, #2d2d2f);
+        margin: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="renderer"></div>
+    <script async src="https://cdn.jsdelivr.net/npm/es-module-shims@1.4.6/dist/es-module-shims.js"></script>
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://cdn.jsdelivr.net/npm/three@0.138.0/build/three.module.js",
+          "three-glft": "https://cdn.jsdelivr.net/npm/three@0.138.0/examples/jsm/loaders/GLTFLoader.js",
+          "three-gui": "https://cdn.jsdelivr.net/npm/three@0.138.0/examples/jsm/libs/lil-gui.module.min.js",
+          "three-orbit": "https://cdn.jsdelivr.net/npm/three@0.138.0/examples/jsm/controls/OrbitControls.js",
+          "three-rgbe": "https://cdn.jsdelivr.net/npm/three@0.138.0/examples/jsm/loaders/RGBELoader.js",
+          "three-stats": "https://cdn.jsdelivr.net/npm/three@0.138.0/examples/jsm/libs/stats.module.js",
+          "three-raymarcher": "../module.js"
+        }
+      }
+    </script>
+    <script type="module">
+      import {
+        AnimationMixer,
+        Clock,
+        Color,
+        FogExp2,
+        Matrix4,
+        Mesh,
+        MeshStandardMaterial,
+        PerspectiveCamera,
+        PlaneGeometry,
+        PMREMGenerator,
+        Quaternion,
+        Scene,
+        sRGBEncoding,
+        Vector3,
+        WebGLRenderer,
+      } from 'three';
+      import { GLTFLoader } from 'three-glft';
+      import { GUI } from 'three-gui';
+      import { OrbitControls } from 'three-orbit';
+      import { RGBELoader } from 'three-rgbe';
+      import Stats from 'three-stats';
+      import Raymarcher from 'three-raymarcher';
+
+      const stats = new Stats();
+      document.body.appendChild(stats.dom);
+      const renderer = new WebGLRenderer();
+      renderer.outputEncoding = sRGBEncoding;
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      const camera = new PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.01, 1000);
+      const clock = new Clock();
+      document.addEventListener('visibilitychange', () => (
+        document.visibilityState === 'visible' && clock.start()
+      ));
+      const controls = new OrbitControls(camera, renderer.domElement);
+      document.getElementById('renderer').appendChild(renderer.domElement);
+      window.addEventListener('resize', () => {
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+      }, false);
+
+      const scene = new Scene();
+      scene.background = new Color(0x222222);
+      scene.fog = new FogExp2(scene.background, 0.02);
+      camera.position.set(0, 8, 16);
+      controls.target.set(0, 8, 0);
+      controls.enableDamping = true;
+
+      const floor = new Mesh(new PlaneGeometry(500, 500), new MeshStandardMaterial({ color: 0x111111, roughness: 0.5 }));
+      floor.position.y = -1;
+      floor.rotation.x = Math.PI * -0.5;
+      floor.visible = false;
+      scene.add(floor);
+
+      const { operations, shapes } = Raymarcher;
+      const bones = new Map();
+      const limbs = [
+        { bones: ['mixamorigHead'], scale: new Vector3(2.5, 2.5, 2.5), offset: new Vector3(0, 0.5, 0), shape: shapes.sphere },
+      
+        { bones: ['mixamorigNeck', 'mixamorigHips'], scale: new Vector3(1.5, 1, 1), shape: shapes.capsule },
+        { bones: ['mixamorigHips'], scale: new Vector3(1.5, 2, 1), shape: shapes.capsule },
+        { bones: ['mixamorigSpine'], scale: new Vector3(2.5, 2.5, 2.5), shape: shapes.sphere },
+
+        { bones: ['mixamorigLeftArm', 'mixamorigLeftForeArm'], scale: new Vector3(1, 1, 1), shape: shapes.capsule },
+        { bones: ['mixamorigLeftForeArm', 'mixamorigLeftHand'], scale: new Vector3(1, 1, 1), shape: shapes.sphere },
+        { bones: ['mixamorigRightArm', 'mixamorigRightForeArm'], scale: new Vector3(1, 1, 1), shape: shapes.capsule },
+        { bones: ['mixamorigRightForeArm', 'mixamorigRightHand'], scale: new Vector3(1, 1, 1), shape: shapes.sphere },
+
+        { bones: ['mixamorigLeftHand'], scale: new Vector3(1, 0.5, 1), shape: shapes.sphere },
+        { bones: ['mixamorigRightHand'], scale: new Vector3(1, 0.5, 1), shape: shapes.sphere },
+
+        { bones: ['mixamorigLeftUpLeg', 'mixamorigLeftLeg'], scale: new Vector3(1, 1, 1), shape: shapes.capsule },
+        { bones: ['mixamorigLeftLeg', 'mixamorigLeftFoot'], scale: new Vector3(1, 1, 1), shape: shapes.sphere },
+        { bones: ['mixamorigRightUpLeg', 'mixamorigRightLeg'], scale: new Vector3(1, 1, 1), shape: shapes.capsule },
+        { bones: ['mixamorigRightLeg', 'mixamorigRightFoot'], scale: new Vector3(1, 1, 1), shape: shapes.sphere },
+
+        { bones: ['mixamorigLeftToeBase'], scale: new Vector3(2, 1.25, 2), shape: shapes.sphere },
+        { bones: ['mixamorigRightToeBase'], scale: new Vector3(2, 1.25, 2), shape: shapes.sphere },
+
+      ];
+      const raymarcher = new Raymarcher({
+        resolution: 0.5,
+        blending: 1,
+        metalness: 0.1,
+        roughness: 0,
+        envMapIntensity: 0.6,
+        layers: [limbs.map(({ scale, shape }) => ({
+          color: (new Color()).setHSL(Math.random(), 0.6, 0.5),
+          operation: operations.union,
+          position: new Vector3(),
+          rotation: new Quaternion(),
+          scale,
+          shape,
+        }))]
+      });
+      raymarcher.visible = false;
+
+      (new RGBELoader()).load('https://cdn.glitch.global/76fe1fa3-d3aa-4d7b-911f-8ad91e01d136/venice_sunset_2k.hdr?v=1646042356028', (texture) => {
+        raymarcher.userData.envMap = (new PMREMGenerator(renderer)).fromEquirectangular(texture).texture;
+        raymarcher.userData.envMapIntensity = 0.6;
+        floor.material.envMap = raymarcher.userData.envMap;
+        floor.visible = raymarcher.visible = true;
+      });
+
+      let actions;
+      let action;
+      let mixer;
+      const setAction = (index) => {
+        action = actions[index].reset().crossFadeFrom(action, 0.4, false);
+      };
+      (new GLTFLoader()).load('https://rawcdn.githack.com/mrdoob/three.js/925fa24d6f395e9d4d7ec8bee3bc2ab95ab2296e/examples/models/gltf/Xbot.glb', (gltf) => {
+        mixer = new AnimationMixer(gltf.scene);
+        actions = gltf.animations.reduce((actions, clip) => {
+          if (['run', 'walk'].includes(clip.name)) {
+            const action = mixer.clipAction(clip);
+            action.play();
+            action.enabled = false;
+            actions.push(action);
+          }
+          return actions;
+        }, []);
+        action = actions[1];
+        action.reset();
+        gltf.scene.traverse((child) => {
+          if (!child.isBone || bones.has(child.name) || !limbs.find(({ bones }) => bones.includes(child.name))) {
+            return;
+          }
+          bones.set(child.name, child);
+        });
+        scene.add(raymarcher);
+      });
+
+      const gui = new GUI({ title: 'three-raymarcher' });
+      gui.add({ action: 1 }, 'action', { walk: 1, run: 0 }).onChange(setAction);
+      gui.add(raymarcher.userData, 'resolution', 0.01, 1, 0.01);
+      gui.add(raymarcher.userData, 'blending', 0.2, 2, 0.01);
+      gui.add(raymarcher.userData, 'metalness', 0, 1, 0.01);
+      gui.add(raymarcher.userData, 'roughness', 0, 1, 0.01);
+      gui.add(raymarcher.userData, 'envMapIntensity', 0, 1, 0.01);
+
+      const matrix = new Matrix4();
+      const forward = new Vector3();
+      const right = new Vector3();
+      const position = new Vector3();
+      const target = new Vector3();
+      const up = new Vector3(0, 1, 0);
+      renderer.setAnimationLoop(() => {
+        const delta = Math.min(clock.getDelta(), 1);
+        const time = clock.oldTime / 1000;
+
+        if (mixer) {
+          mixer.update(delta);
+          raymarcher.userData.layers[0].forEach((entity, i) => {
+            const limb = limbs[i];
+            if (limb.bones.length === 2) {
+              const boneA = bones.get(limb.bones[0]);
+              const boneB = bones.get(limb.bones[1]);
+              boneA.getWorldPosition(position).multiplyScalar(8);
+              boneB.getWorldPosition(target).multiplyScalar(8);
+              entity.position.addVectors(position, target).multiplyScalar(0.5);
+              forward.subVectors(position, target);
+              entity.scale.y = forward.length();
+              forward.normalize();
+              right.crossVectors(forward, up).normalize();
+              target.crossVectors(forward, right).add(entity.position);
+              matrix.lookAt(target, entity.position, up);
+              entity.rotation.setFromRotationMatrix(matrix);
+            } else {
+              const bone = bones.get(limb.bones[0]);
+              bone.getWorldPosition(entity.position).multiplyScalar(8);
+              bone.getWorldQuaternion(entity.rotation);
+            }
+            if (limb.offset) entity.position.add(limb.offset);
+          });
+        }
+
+        controls.update();
+        stats.update();
+        renderer.render(scene, camera);
+      });
+    </script>
+  </body>
+</html>
