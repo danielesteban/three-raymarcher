@@ -5,7 +5,6 @@
     <meta charset="utf-8">
     <style>
       body {
-        background: linear-gradient(to top, #0a0a0a, #181a1a, #2d2d2f);
         margin: 0;
       }
     </style>
@@ -106,7 +105,6 @@
 
         { bones: ['mixamorigLeftToeBase'], scale: new Vector3(2, 1.25, 2), shape: shapes.sphere },
         { bones: ['mixamorigRightToeBase'], scale: new Vector3(2, 1.25, 2), shape: shapes.sphere },
-
       ];
       const raymarcher = new Raymarcher({
         resolution: 0.5,
@@ -126,9 +124,8 @@
       raymarcher.visible = false;
 
       (new RGBELoader()).load('https://cdn.glitch.global/2ff897ed-f43c-44dd-843c-b74eac15acb7/venice_sunset_2k.hdr?v=1646170798435', (texture) => {
-        raymarcher.userData.envMap = (new PMREMGenerator(renderer)).fromEquirectangular(texture).texture;
-        raymarcher.userData.envMapIntensity = 0.6;
-        floor.material.envMap = raymarcher.userData.envMap;
+        floor.material.envMap = raymarcher.userData.envMap = (new PMREMGenerator(renderer))
+          .fromEquirectangular(texture).texture;
         floor.visible = raymarcher.visible = true;
       });
 
