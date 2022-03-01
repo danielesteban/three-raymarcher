@@ -125,32 +125,32 @@
       });
       raymarcher.visible = false;
 
-      (new RGBELoader()).load('https://cdn.glitch.global/76fe1fa3-d3aa-4d7b-911f-8ad91e01d136/venice_sunset_2k.hdr?v=1646042356028', (texture) => {
+      (new RGBELoader()).load('https://cdn.glitch.global/2ff897ed-f43c-44dd-843c-b74eac15acb7/venice_sunset_2k.hdr?v=1646170798435', (texture) => {
         raymarcher.userData.envMap = (new PMREMGenerator(renderer)).fromEquirectangular(texture).texture;
         raymarcher.userData.envMapIntensity = 0.6;
         floor.material.envMap = raymarcher.userData.envMap;
         floor.visible = raymarcher.visible = true;
       });
 
-      let actions;
-      let action;
       let mixer;
-      const setAction = (index) => {
-        action = actions[index].reset().crossFadeFrom(action, 0.4, false);
+      let action = null;
+      let actions = new Map();
+      const setAction = (id) => {
+        if (actions.has(id)) {
+          action = actions.get(id).reset().crossFadeFrom(action, 0.4, false);
+        }
       };
-      (new GLTFLoader()).load('https://rawcdn.githack.com/mrdoob/three.js/925fa24d6f395e9d4d7ec8bee3bc2ab95ab2296e/examples/models/gltf/Xbot.glb', (gltf) => {
+      (new GLTFLoader()).load('https://cdn.glitch.global/2ff897ed-f43c-44dd-843c-b74eac15acb7/Xbot.glb?v=1646170810492', (gltf) => {
         mixer = new AnimationMixer(gltf.scene);
-        actions = gltf.animations.reduce((actions, clip) => {
+        gltf.animations.forEach((clip) => {
           if (['run', 'walk'].includes(clip.name)) {
             const action = mixer.clipAction(clip);
             action.play();
             action.enabled = false;
-            actions.push(action);
+            actions.set(clip.name, action);
           }
-          return actions;
-        }, []);
-        action = actions[1];
-        action.reset();
+        });
+        action = actions.get('walk').reset();
         gltf.scene.traverse((child) => {
           if (!child.isBone || bones.has(child.name) || !limbs.find(({ bones }) => bones.includes(child.name))) {
             return;
@@ -161,7 +161,7 @@
       });
 
       const gui = new GUI({ title: 'three-raymarcher' });
-      gui.add({ action: 1 }, 'action', { walk: 1, run: 0 }).onChange(setAction);
+      gui.add({ action: 'walk' }, 'action', { Walk: 'walk', Run: 'run' }).onChange(setAction);
       gui.add(raymarcher.userData, 'resolution', 0.01, 1, 0.01);
       gui.add(raymarcher.userData, 'blending', 0.2, 2, 0.01);
       gui.add(raymarcher.userData, 'metalness', 0, 1, 0.01);
@@ -171,9 +171,9 @@
       const matrix = new Matrix4();
       const forward = new Vector3();
       const right = new Vector3();
+      const up = new Vector3(0, 1, 0);
       const position = new Vector3();
       const target = new Vector3();
-      const up = new Vector3(0, 1, 0);
       renderer.setAnimationLoop(() => {
         const delta = Math.min(clock.getDelta(), 1);
         const time = clock.oldTime / 1000;
