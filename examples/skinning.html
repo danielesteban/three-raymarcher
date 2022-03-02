@@ -149,10 +149,9 @@
         });
         action = actions.get('walk').reset();
         gltf.scene.traverse((child) => {
-          if (!child.isBone || bones.has(child.name) || !limbs.find(({ bones }) => bones.includes(child.name))) {
-            return;
+          if (child.isBone && !bones.has(child.name) && limbs.find(({ bones }) => bones.includes(child.name))) {
+            bones.set(child.name, child);
           }
-          bones.set(child.name, child);
         });
         scene.add(raymarcher);
       });
