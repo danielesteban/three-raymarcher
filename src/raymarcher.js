@@ -5,7 +5,7 @@ import {
   Frustum,
   IcosahedronGeometry,
   GLSL3,
-  Math as ThreeMath,
+  MathUtils,
   Matrix4,
   Mesh,
   PlaneGeometry,
@@ -130,7 +130,7 @@ class Raymarcher extends Mesh {
           material.needsUpdate = true;
         }
         if (value) {
-          const maxMip = Math.log2(value.image.height / 32 + 1) + 3;
+          const maxMip = Math.log2(value.image.height) - 2;
           const texelWidth = 1.0 / (3 * Math.max(Math.pow(2, maxMip), 7 * 16));
           const texelHeight = 1.0 / value.image.height;
           if (defines.CUBEUV_MAX_MIP !== `${maxMip}.0`) {
@@ -207,7 +207,7 @@ class Raymarcher extends Mesh {
 
     camera.getWorldDirection(uniforms.cameraDirection.value);
     uniforms.cameraFar.value = camera.far;
-    uniforms.cameraFov.value = ThreeMath.degToRad(camera.fov);
+    uniforms.cameraFov.value = MathUtils.degToRad(camera.fov);
     uniforms.cameraNear.value = camera.near;
     
     _frustum.setFromProjectionMatrix(
