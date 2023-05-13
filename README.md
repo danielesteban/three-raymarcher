@@ -95,7 +95,7 @@ If you don't set an envMap, the shader will use `vec3(envMapIntensity)` as the a
 
 ## Raymarching
 
-`userData.blending` controls the global smoothing of the union and substraction operations.
+`userData.blending` controls the global smoothing of the union, substraction and intersection operations.
 
 `userData.conetracing` enables/disables conetracing (sort of antialias).
 

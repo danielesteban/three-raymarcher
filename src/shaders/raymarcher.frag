@@ -101,6 +101,14 @@ SDF opSmoothSubtraction(const in SDF a, const in SDF b, const in float k) {
   );
 }
 
+SDF opSmoothIntersection(const in SDF a, const in SDF b, const in float k) {
+  float h = saturate(0.5 + 0.5 * (b.distance - a.distance) / k);
+  return SDF(
+    mix(a.distance, b.distance, h) + k*h*(1.0-h),
+    mix(a.color, b.color, h)
+  );
+}
+
 SDF map(const in vec3 p) {
   SDF scene = sdEntity(p, entities[0]);
   for (int i = 1, l = min(numEntities, MAX_ENTITIES); i < l; i++) {
@@ -111,6 +119,9 @@ SDF map(const in vec3 p) {
         break;
       case 1:
         scene = opSmoothSubtraction(scene, sdEntity(p, entities[i]), blending);
+        break;
+      case 2:
+        scene = opSmoothIntersection(scene, sdEntity(p, entities[i]), blending);
         break;
     }
   }

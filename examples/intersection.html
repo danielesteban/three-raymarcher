@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>three-raymarcher</title>
+    <meta charset="utf-8" />
+    <style>
+      body {
+        background: linear-gradient(to top, #0a0a0a, #181a1a, #2d2d2f);
+        margin: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="renderer"></div>
+    <script
+      async
+      src="https://cdn.jsdelivr.net/npm/es-module-shims@1.4.6/dist/es-module-shims.js"
+    ></script>
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://cdn.jsdelivr.net/npm/three@0.142.0/build/three.module.js",
+          "three-environment": "https://cdn.jsdelivr.net/npm/three@0.142.0/examples/jsm/environments/RoomEnvironment.js",
+          "three-gui": "https://cdn.jsdelivr.net/npm/three@0.142.0/examples/jsm/libs/lil-gui.module.min.js",
+          "three-orbit": "https://cdn.jsdelivr.net/npm/three@0.142.0/examples/jsm/controls/OrbitControls.js",
+          "three-stats": "https://cdn.jsdelivr.net/npm/three@0.142.0/examples/jsm/libs/stats.module.js",
+          "three-raymarcher": "../module.js"
+        }
+      }
+    </script>
+    <script type="module">
+      import {
+        Color,
+        LinearFilter,
+        Matrix4,
+        NearestFilter,
+        PerspectiveCamera,
+        PMREMGenerator,
+        Quaternion,
+        Scene,
+        sRGBEncoding,
+        Vector3,
+        WebGLRenderer,
+      } from "three";
+      import { RoomEnvironment } from "three-environment";
+      import { GUI } from "three-gui";
+      import { OrbitControls } from "three-orbit";
+      import Stats from "three-stats";
+      import Raymarcher from "three-raymarcher";
+
+      const stats = new Stats();
+      document.body.appendChild(stats.dom);
+      const renderer = new WebGLRenderer({ alpha: true });
+      renderer.outputEncoding = sRGBEncoding;
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      const camera = new PerspectiveCamera(
+        75,
+        window.innerWidth / window.innerHeight,
+        0.01,
+        1000
+      );
+      const controls = new OrbitControls(camera, renderer.domElement);
+      document.getElementById("renderer").appendChild(renderer.domElement);
+      window.addEventListener(
+        "resize",
+        () => {
+          renderer.setSize(window.innerWidth, window.innerHeight);
+          camera.aspect = window.innerWidth / window.innerHeight;
+          camera.updateProjectionMatrix();
+        },
+        false
+      );
+
+      const scene = new Scene();
+      camera.position.set(0, 0, 36);
+      controls.enableDamping = true;
+
+      const environments = {
+        RoomEnvironment: new PMREMGenerator(renderer).fromScene(
+          new RoomEnvironment()
+        ).texture,
+        Disabled: null,
+      };
+
+      const { operations, shapes } = Raymarcher;
+      const raymarcher = new Raymarcher({
+        resolution: 0.5,
+        blending: 1,
+        roughness: 0,
+        envMapIntensity: 0.6,
+        envMap: environments.RoomEnvironment,
+        layers: [
+          [
+            {
+              color: new Color(Math.random() * 0xffffff),
+              operation: operations.union,
+              position: new Vector3(0, 2, 0),
+              rotation: new Quaternion(0, 0, 0, 1),
+              scale: new Vector3(8, 8, 8),
+              shape: shapes.sphere,
+            },
+            {
+              color: new Color(Math.random() * 0xffffff),
+              operation: operations.intersection,
+              position: new Vector3(0, 0, 0),
+              rotation: new Quaternion(0, 0, 0, 1),
+              scale: new Vector3(8, 8, 8),
+              shape: shapes.sphere,
+            },
+            {
+              color: new Color(Math.random() * 0xffffff),
+              operation: operations.intersection,
+              position: new Vector3(0, 0, 0),
+              rotation: new Quaternion(0, 0, 0, 1),
+              scale: new Vector3(4, 4, 4),
+              shape: shapes.box,
+            },
+          ],
+        ],
+      });
+      scene.add(raymarcher);
+
+      const gui = new GUI({ title: "three-raymarcher" });
+      gui.add(raymarcher.userData, "resolution", 0.01, 1, 0.01);
+      gui.add(raymarcher.userData, "conetracing");
+      gui.add(raymarcher.userData, "blending", 0, 2, 0.01);
+      gui.add(raymarcher.userData, "metalness", 0, 1, 0.01);
+      gui.add(raymarcher.userData, "roughness", 0, 1, 0.01);
+      gui.add(raymarcher.userData, "envMapIntensity", 0, 1, 0.01);
+      gui.add(raymarcher.userData, "envMap", environments);
+
+      const animations = raymarcher.userData.layers.map((layer, l) =>
+        layer.map(({ position, scale }) => ({
+          axis: new Vector3(),
+          offset: new Vector3(0, 2, 0),
+          position: position.clone(),
+          scale: scale.clone(),
+          speed: 0.5 + Math.random() * 2,
+        }))
+      );
+      const up = new Vector3(0, 1, 0);
+      const rotate = new Matrix4();
+      renderer.setAnimationLoop((time) => {
+        time /= 1000;
+
+        rotate.makeRotationAxis(up, time * 0.75);
+        raymarcher.userData.layers.forEach((layer, layerId) =>
+          layer.forEach((entity, entityId) => {
+            const animation = animations[layerId][entityId];
+            const t = (layerId * 0.5 + 10) * entityId + time * animation.speed;
+            entity.position
+              .copy(animation.position)
+              .multiplyScalar(0.7 + Math.sin(t * 0.5) * 0.3)
+              .applyMatrix4(rotate)
+              .add(animation.offset);
+            entity.rotation.setFromAxisAngle(animation.axis, t * 0.25);
+            entity.scale
+              .copy(animation.scale)
+              .multiplyScalar(1.75 + Math.abs(Math.sin(t * 0.125)) * 3);
+          })
+        );
+
+        controls.update();
+        stats.update();
+        renderer.render(scene, camera);
+      });
+    </script>
+  </body>
+</html>

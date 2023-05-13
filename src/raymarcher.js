@@ -338,6 +338,7 @@ class Raymarcher extends Mesh {
 Raymarcher.operations = {
   union: 0,
   substraction: 1,
+  intersection: 2,
 };
 
 Raymarcher.shapes = {
