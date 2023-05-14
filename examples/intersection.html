@@ -19,11 +19,11 @@
     <script type="importmap">
       {
         "imports": {
-          "three": "https://cdn.jsdelivr.net/npm/three@0.142.0/build/three.module.js",
-          "three-environment": "https://cdn.jsdelivr.net/npm/three@0.142.0/examples/jsm/environments/RoomEnvironment.js",
-          "three-gui": "https://cdn.jsdelivr.net/npm/three@0.142.0/examples/jsm/libs/lil-gui.module.min.js",
-          "three-orbit": "https://cdn.jsdelivr.net/npm/three@0.142.0/examples/jsm/controls/OrbitControls.js",
-          "three-stats": "https://cdn.jsdelivr.net/npm/three@0.142.0/examples/jsm/libs/stats.module.js",
+          "three": "https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.module.js",
+          "three-environment": "https://cdn.jsdelivr.net/npm/three@0.152.2/examples/jsm/environments/RoomEnvironment.js",
+          "three-gui": "https://cdn.jsdelivr.net/npm/three@0.152.2/examples/jsm/libs/lil-gui.module.min.js",
+          "three-orbit": "https://cdn.jsdelivr.net/npm/three@0.152.2/examples/jsm/controls/OrbitControls.js",
+          "three-stats": "https://cdn.jsdelivr.net/npm/three@0.152.2/examples/jsm/libs/stats.module.js",
           "three-raymarcher": "../module.js"
         }
       }
@@ -38,7 +38,6 @@
         PMREMGenerator,
         Quaternion,
         Scene,
-        sRGBEncoding,
         Vector3,
         WebGLRenderer,
       } from "three";
@@ -51,7 +50,6 @@
       const stats = new Stats();
       document.body.appendChild(stats.dom);
       const renderer = new WebGLRenderer({ alpha: true });
-      renderer.outputEncoding = sRGBEncoding;
       renderer.setSize(window.innerWidth, window.innerHeight);
       const camera = new PerspectiveCamera(
         75,

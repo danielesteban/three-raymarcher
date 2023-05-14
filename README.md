@@ -126,8 +126,8 @@ Here's how to setup the module dev environment:
 git clone https://github.com/danielesteban/three-raymarcher.git
 cd three-raymarcher
 # install dependencies
-npm install
+pnpm install
 # start the environment:
-npm start
+pnpm start
 # open http://localhost:8080/examples/animation in your browser
 ```

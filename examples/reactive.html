@@ -30,10 +30,10 @@
     <script type="importmap">
       {
         "imports": {
-          "three": "https://cdn.jsdelivr.net/npm/three@0.142.0/build/three.module.js",
-          "three-environment": "https://cdn.jsdelivr.net/npm/three@0.142.0/examples/jsm/environments/RoomEnvironment.js",
-          "three-orbit": "https://cdn.jsdelivr.net/npm/three@0.142.0/examples/jsm/controls/OrbitControls.js",
-          "three-stats": "https://cdn.jsdelivr.net/npm/three@0.142.0/examples/jsm/libs/stats.module.js",
+          "three": "https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.module.js",
+          "three-environment": "https://cdn.jsdelivr.net/npm/three@0.152.2/examples/jsm/environments/RoomEnvironment.js",
+          "three-orbit": "https://cdn.jsdelivr.net/npm/three@0.152.2/examples/jsm/controls/OrbitControls.js",
+          "three-stats": "https://cdn.jsdelivr.net/npm/three@0.152.2/examples/jsm/libs/stats.module.js",
           "three-raymarcher": "../module.js"
         }
       }
@@ -47,7 +47,6 @@
         Quaternion,
         Raycaster,
         Scene,
-        sRGBEncoding,
         Vector2,
         Vector3,
         WebGLRenderer,
@@ -60,7 +59,6 @@
       const stats = new Stats();
       document.body.appendChild(stats.dom);
       const renderer = new WebGLRenderer({ alpha: true });
-      renderer.outputEncoding = sRGBEncoding;
       renderer.setSize(window.innerWidth, window.innerHeight);
       const camera = new PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.01, 1000);
       const clock = new Clock();
