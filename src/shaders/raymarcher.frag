@@ -37,10 +37,9 @@ uniform int numEntities;
 uniform vec2 resolution;
 uniform float roughness;
 
-#define saturate(a) clamp(a, 0.0, 1.0)
 #define texture2D texture
-#include <cube_uv_reflection_fragment>
-#include <encodings_pars_fragment>
+#include <common>
+#include <colorspace_pars_fragment>
 #include <lighting>
 
 vec3 applyQuaternion(const in vec3 p, const in vec4 q) {
@@ -193,7 +192,7 @@ void main() {
   vec4 color = vec4(0.0);
   float distance = cameraNear;
   march(color, distance);
-  fragColor = saturate(LinearTosRGB(color));
+  fragColor = saturate(sRGBTransferOETF(color));
   float z = (distance >= MAX_DISTANCE) ? cameraFar : (distance * dot(cameraDirection, ray));
   float ndcDepth = -((cameraFar + cameraNear) / (cameraNear - cameraFar)) + ((2.0 * cameraFar * cameraNear) / (cameraNear - cameraFar)) / z;
   gl_FragDepth = ((gl_DepthRange.diff * ndcDepth) + gl_DepthRange.near + gl_DepthRange.far) / 2.0;
