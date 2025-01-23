@@ -121,7 +121,7 @@
         entity.scale.copy(scale);
       });
       scene.add(object);
-      scene.add(transform);
+      scene.add(transform.getHelper());
       attach(raymarcher.userData.layers[0][0]);
 
       const raycaster = new Raycaster();
