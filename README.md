@@ -4,12 +4,12 @@
 
 ## Examples
 
- * Animation: [glitch.com/~three-raymarcher](https://glitch.com/edit/#!/three-raymarcher)
- * Interactive: [glitch.com/~three-raymarcher-interactive](https://glitch.com/edit/#!/three-raymarcher-interactive)
- * Physics: [glitch.com/~three-raymarcher-physics](https://glitch.com/edit/#!/three-raymarcher-physics)
- * Reactive: [glitch.com/~three-raymarcher-reactive](https://glitch.com/edit/#!/three-raymarcher-reactive)
- * Skinning: [glitch.com/~three-raymarcher-skinning](https://glitch.com/edit/#!/three-raymarcher-skinning)
- * Transform: [glitch.com/~three-raymarcher-transform](https://glitch.com/edit/#!/three-raymarcher-transform)
+ * Animation: [danielesteban.github.io/three-raymarcher/animation](https://danielesteban.github.io/three-raymarcher/animation.html)
+ * Interactive: [danielesteban.github.io/three-raymarcher/interactive](https://danielesteban.github.io/three-raymarcher/interactive.html)
+ * Physics: [danielesteban.github.io/three-raymarcher/physics](https://danielesteban.github.io/three-raymarcher/physics.html)
+ * Reactive: [danielesteban.github.io/three-raymarcher/reactive](https://danielesteban.github.io/three-raymarcher/reactive.html)
+ * Skinning: [danielesteban.github.io/three-raymarcher/skinning](https://danielesteban.github.io/three-raymarcher/skinning.html)
+ * Transform: [danielesteban.github.io/three-raymarcher/transform](https://danielesteban.github.io/three-raymarcher/transform.html)
  * react-three-fiber: [codesandbox.io/s/three-raymarcher-3xdor](https://codesandbox.io/s/three-raymarcher-3xdor)
 
 ## Installation
