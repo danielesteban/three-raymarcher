@@ -83,6 +83,7 @@ class Raymarcher extends Mesh {
         cameraFar: { value: 0 },
         cameraFov: { value: 0 },
         cameraNear: { value: 0 },
+        dfgLUT: { value: null },
         envMap: { value: null },
         envMapIntensity: { value: envMapIntensity },
         metalness: { value: metalness },
@@ -130,9 +131,9 @@ class Raymarcher extends Mesh {
           material.needsUpdate = true;
         }
         if (value) {
-          const maxMip = Math.log2(value.image.height) - 2;
+          const maxMip = Math.log2(value.height) - 2;
           const texelWidth = 1.0 / (3 * Math.max(Math.pow(2, maxMip), 7 * 16));
-          const texelHeight = 1.0 / value.image.height;
+          const texelHeight = 1.0 / value.height;
           if (defines.CUBEUV_MAX_MIP !== `${maxMip}.0`) {
             defines.CUBEUV_MAX_MIP = `${maxMip}.0`;
             material.needsUpdate = true;

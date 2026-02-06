@@ -15,12 +15,12 @@
     <script type="importmap">
       {
         "imports": {
-          "three": "https://cdn.jsdelivr.net/npm/three@0.179.1/build/three.module.js",
-          "three-gltf": "https://cdn.jsdelivr.net/npm/three@0.179.1/examples/jsm/loaders/GLTFLoader.js",
-          "three-gui": "https://cdn.jsdelivr.net/npm/three@0.179.1/examples/jsm/libs/lil-gui.module.min.js",
-          "three-orbit": "https://cdn.jsdelivr.net/npm/three@0.179.1/examples/jsm/controls/OrbitControls.js",
-          "three-rgbe": "https://cdn.jsdelivr.net/npm/three@0.179.1/examples/jsm/loaders/RGBELoader.js",
-          "three-stats": "https://cdn.jsdelivr.net/npm/three@0.179.1/examples/jsm/libs/stats.module.js",
+          "three": "https://cdn.jsdelivr.net/npm/three@0.182.0/build/three.module.js",
+          "three-gltf": "https://cdn.jsdelivr.net/npm/three@0.182.0/examples/jsm/loaders/GLTFLoader.js",
+          "three-gui": "https://cdn.jsdelivr.net/npm/three@0.182.0/examples/jsm/libs/lil-gui.module.min.js",
+          "three-orbit": "https://cdn.jsdelivr.net/npm/three@0.182.0/examples/jsm/controls/OrbitControls.js",
+          "three-ultrahdr": "https://cdn.jsdelivr.net/npm/three@0.182.0/examples/jsm/loaders/UltraHDRLoader.js",
+          "three-stats": "https://cdn.jsdelivr.net/npm/three@0.182.0/examples/jsm/libs/stats.module.js",
           "three-raymarcher": "../module.js"
         }
       }
@@ -31,6 +31,7 @@
         Clock,
         Color,
         FogExp2,
+        HalfFloatType,
         Matrix4,
         Mesh,
         MeshStandardMaterial,
@@ -45,7 +46,7 @@
       import { GLTFLoader } from 'three-gltf';
       import { GUI } from 'three-gui';
       import { OrbitControls } from 'three-orbit';
-      import { RGBELoader } from 'three-rgbe';
+      import { UltraHDRLoader } from 'three-ultrahdr';
       import Stats from 'three-stats';
       import Raymarcher from 'three-raymarcher';
 
@@ -121,7 +122,11 @@
       });
       raymarcher.visible = false;
 
-      (new RGBELoader()).load('https://cdn.glitch.global/2ff897ed-f43c-44dd-843c-b74eac15acb7/venice_sunset_2k.hdr?v=1646170798435', (texture) => {
+      (() => {
+        const loader = new UltraHDRLoader();
+        loader.setDataType(HalfFloatType);
+        return loader;
+      })().load('environments/venice_sunset_2k.jpg', (texture) => {
         floor.material.envMap = raymarcher.userData.envMap = (new PMREMGenerator(renderer))
           .fromEquirectangular(texture).texture;
         floor.visible = raymarcher.visible = true;
@@ -135,7 +140,7 @@
           action = actions.get(id).reset().crossFadeFrom(action, 0.4, false);
         }
       };
-      (new GLTFLoader()).load('https://cdn.glitch.global/2ff897ed-f43c-44dd-843c-b74eac15acb7/Xbot.glb?v=1646170810492', (gltf) => {
+      (new GLTFLoader()).load('models/bot.glb', (gltf) => {
         mixer = new AnimationMixer(gltf.scene);
         gltf.animations.forEach((clip) => {
           if (['run', 'walk'].includes(clip.name)) {

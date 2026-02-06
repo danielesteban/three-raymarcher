@@ -16,21 +16,22 @@
     <script type="importmap">
       {
         "imports": {
-          "three": "https://cdn.jsdelivr.net/npm/three@0.179.1/build/three.module.js",
-          "three-gui": "https://cdn.jsdelivr.net/npm/three@0.179.1/examples/jsm/libs/lil-gui.module.min.js",
-          "three-orbit": "https://cdn.jsdelivr.net/npm/three@0.179.1/examples/jsm/controls/OrbitControls.js",
-          "three-rgbe": "https://cdn.jsdelivr.net/npm/three@0.179.1/examples/jsm/loaders/RGBELoader.js",
-          "three-stats": "https://cdn.jsdelivr.net/npm/three@0.179.1/examples/jsm/libs/stats.module.js",
+          "three": "https://cdn.jsdelivr.net/npm/three@0.182.0/build/three.module.js",
+          "three-gui": "https://cdn.jsdelivr.net/npm/three@0.182.0/examples/jsm/libs/lil-gui.module.min.js",
+          "three-orbit": "https://cdn.jsdelivr.net/npm/three@0.182.0/examples/jsm/controls/OrbitControls.js",
+          "three-ultrahdr": "https://cdn.jsdelivr.net/npm/three@0.182.0/examples/jsm/loaders/UltraHDRLoader.js",
+          "three-stats": "https://cdn.jsdelivr.net/npm/three@0.182.0/examples/jsm/libs/stats.module.js",
           "three-raymarcher": "../module.js"
         }
       }
     </script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.179.1/examples/jsm/libs/ammo.wasm.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.182.0/examples/jsm/libs/ammo.wasm.js"></script>
     <script type="module">
       import {
         Clock,
         Color,
         EquirectangularReflectionMapping,
+        HalfFloatType,
         Mesh,
         PerspectiveCamera,
         PlaneGeometry,
@@ -44,7 +45,7 @@
       } from 'three';
       import { GUI } from 'three-gui';
       import { OrbitControls } from 'three-orbit';
-      import { RGBELoader } from 'three-rgbe';
+      import { UltraHDRLoader } from 'three-ultrahdr';
       import Stats from 'three-stats';
       import Raymarcher from 'three-raymarcher';
 
@@ -99,19 +100,20 @@
       scene.add(raymarcher);
 
       const environments = {
-        Apartment: 'https://cdn.glitch.global/76fe1fa3-d3aa-4d7b-911f-8ad91e01d136/lebombo_2k.hdr?v=1646042358302',
-        City: 'https://cdn.glitch.global/76fe1fa3-d3aa-4d7b-911f-8ad91e01d136/potsdamer_platz_2k.hdr?v=1646042358575',
-        Forest: 'https://cdn.glitch.global/76fe1fa3-d3aa-4d7b-911f-8ad91e01d136/neurathen_rock_castle_2k.hdr?v=1646042624812',
-        Studio: 'https://cdn.glitch.global/76fe1fa3-d3aa-4d7b-911f-8ad91e01d136/studio_small_08_2k.hdr?v=1646042358774',
-        Warehouse: 'https://cdn.glitch.global/76fe1fa3-d3aa-4d7b-911f-8ad91e01d136/empty_warehouse_01_2k.hdr?v=1646042357806',
-        Sunset: 'https://cdn.glitch.global/76fe1fa3-d3aa-4d7b-911f-8ad91e01d136/venice_sunset_2k.hdr?v=1646042356028',
-        Dawn: 'https://cdn.glitch.global/76fe1fa3-d3aa-4d7b-911f-8ad91e01d136/kiara_1_dawn_2k.hdr?v=1646042357931',
-        Night: 'https://cdn.glitch.global/76fe1fa3-d3aa-4d7b-911f-8ad91e01d136/dikhololo_night_2k.hdr?v=1646042357152',
+        Apartment: 'lebombo_2k.jpg',
+        City: 'potsdamer_platz_2k.jpg',
+        Forest: 'neurathen_rock_castle_2k.jpg',
+        Studio: 'studio_small_08_2k.jpg',
+        Warehouse: 'empty_warehouse_01_2k.jpg',
+        Sunset: 'venice_sunset_2k.jpg',
+        Dawn: 'kiara_1_dawn_2k.jpg',
+        Night: 'dikhololo_night_2k.jpg',
       };
-      const loader = new RGBELoader();
+      const loader = new UltraHDRLoader();
+      loader.setDataType(HalfFloatType);
       const pmrem = new PMREMGenerator(renderer);
       const loadEnvironment = (environment) => {
-        loader.load(environments[environment], (texture) => {
+        loader.load(`environments/${environments[environment]}`, (texture) => {
           texture.mapping = EquirectangularReflectionMapping;
           scene.background = texture;
           raymarcher.userData.envMap = pmrem.fromEquirectangular(texture).texture;

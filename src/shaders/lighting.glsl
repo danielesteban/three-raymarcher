@@ -5,7 +5,7 @@
 
 vec3 getIBLRadiance(const in vec3 viewDir, const in vec3 normal, const in float roughness) {
   vec3 reflectVec = reflect(-viewDir, normal);
-  reflectVec = normalize(mix(reflectVec, normal, roughness * roughness));
+  reflectVec = normalize(mix(reflectVec, normal, pow4(roughness)));
   vec4 envMapColor = textureCubeUV(envMap, reflectVec, roughness);
   return envMapColor.rgb * envMapIntensity;
 }
@@ -17,9 +17,12 @@ vec3 getIBLIrradiance(const in vec3 normal) {
 
 vec3 getLight(const in vec3 position, const in vec3 normal, const in vec3 diffuse) {
   PhysicalMaterial material;
-  material.diffuseColor = diffuse * (1.0 - metalness);
-  material.roughness = max(min(roughness, 1.0), 0.0525);
-  material.specularColor = mix(vec3(0.04), diffuse, metalness);
+  material.diffuseColor = diffuse;
+  material.diffuseContribution = diffuse * (1.0 - metalness);
+  material.metalness = metalness;
+  material.roughness = min(max(roughness, 0.0525), 1.0);
+  material.specularColor = vec3(0.04);
+  material.specularColorBlended = mix(material.specularColor, diffuse, metalness);
   material.specularF90 = 1.0;
 
   vec3 clearCoatNormal;
